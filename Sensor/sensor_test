@@ -17,15 +17,34 @@ void set_values()
 {
 DDRA = 0b00000010; // Sätter PA1 till utgång
 DDRB = 0b11111111; // Sätter alla b-portar till utgångar för att kunna testa längdräkning
+
 }
 
 void measure()
 {
-		
-PORTA |= (1<<PORTA1); // Sätter PA1 till hög under bestämd tid
-_delay_us(100);
-PORTA &= ~(1<<PORTA1);// Sätter PA1 till låg och startar mätningen
-		
+	PORTA |= (1<<PORTA1); // Sätter PA1 till hög under bestämd tid
+	_delay_us(100);
+	PORTA &= ~(1<<PORTA1);// Sätter PA1 till låg och startar mätningen
+	if(PORTA2 == 1)  // Sålänge Echo_out är 1 så räknas measure_count upp med 1us per klockpuls
+	{
+	measure_count = 0x00;
+	distance = 0x00;
+	count();
+	}
+
+	distance = measure_count/us_converter;	//sparar undan avståndet som är antal us delat med 58
+	PORTB |= distance;
+	_delay_ms(10);
+}
+
+void count()
+{
+	if(PORTA1 == 1)
+	{
+	++measure_count;
+	count();
+	}
+
 }
 
 
@@ -39,18 +58,18 @@ int main(void)
     {
 		
 		measure();
-		measure_count = 0x00;
-		distance = 0x00;
-		while(PORTA2 == 1)  // Sålänge Echo_out är 1 så räknas measure_count upp med 1us per klockpuls
+		/*
+		if(PORTA2 == 1)  // Sålänge Echo_out är 1 så räknas measure_count upp med 1us per klockpuls
 		{
-			++measure_count;
+			measure_count = 0x00;
+			distance = 0x00;
+			count();
 		}
 		
 		distance = measure_count/us_converter;	//sparar undan avståndet som är antal us delat med 58
 		PORTB |= distance;
 		_delay_ms(10);
-		
+		*/
 	}
 return 0;
 }
-
