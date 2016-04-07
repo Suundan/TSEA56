@@ -1,0 +1,39 @@
+/*
+ * sensor_test.c
+ *
+ * Created: 2016-04-06 14:46:59
+ * Author : Milton
+ */ 
+#define F_CPU 1000000UL
+#include <avr/io.h>
+#include <avr/delay.h>
+
+//PORTA |= (0<<PORTA1);
+
+void set_values()
+{
+DDRA = 0b00000010; // Sätter PA1 till utgång
+
+}
+
+void measure()
+{
+	
+	PORTA |= (1<<PORTA1); // Sätter PA1 till hög under 100 millisekunder
+	_delay_ms(100);
+	PORTA &= ~(1<<PORTA1);
+	
+}
+
+
+int main(void)
+{
+    set_values();
+	
+    while (1) 
+    {
+		measure();
+		_delay_ms(1000);
+    }
+}
+
