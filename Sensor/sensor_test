@@ -7,33 +7,50 @@
 #define F_CPU 1000000UL
 #include <avr/io.h>
 #include <avr/delay.h>
+#include <stdio.h>
+unsigned int measure_count = 0x00;
+unsigned int distance = 0x00;
+unsigned int us_converter = 0x3a;
 
-//PORTA |= (0<<PORTA1);
 
 void set_values()
 {
 DDRA = 0b00000010; // Sätter PA1 till utgång
-
+DDRB = 0b11111111; // Sätter alla b-portar till utgångar för att kunna testa längdräkning
 }
 
 void measure()
 {
-	
-	PORTA |= (1<<PORTA1); // Sätter PA1 till hög under 100 millisekunder
-	_delay_ms(100);
-	PORTA &= ~(1<<PORTA1);
-	
+		
+PORTA |= (1<<PORTA1); // Sätter PA1 till hög under bestämd tid
+_delay_us(100);
+PORTA &= ~(1<<PORTA1);// Sätter PA1 till låg och startar mätningen
+		
 }
+
 
 
 int main(void)
 {
+	
     set_values();
 	
     while (1) 
     {
+		
 		measure();
-		_delay_ms(1000);
-    }
+		measure_count = 0x00;
+		distance = 0x00;
+		while(PORTA2 == 1)  // Sålänge Echo_out är 1 så räknas measure_count upp med 1us per klockpuls
+		{
+			++measure_count;
+		}
+		
+		distance = measure_count/us_converter;	//sparar undan avståndet som är antal us delat med 58
+		PORTB |= distance;
+		_delay_ms(10);
+		
+	}
+return 0;
 }
 
