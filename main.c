@@ -13,18 +13,7 @@
 
 void init_bluetooth()
 {
-	
-	// Slave mode, XCK är in
-	//DDRB = 0b00000000;
-	
-	DDRD = 0b00010010; // Utgång på TXD
-	
-	// Synkron överföring
-	UCSRC |= (1<<URSEL);
-	UCSRC |= (1<<UMSEL);
-	//UCSRC |= (1<<UCPOL);
-	
-	
+	DDRD = 0b00000010; // Utgång på TXD
 	
 	//Inställningar för  BAUDRATE
 	unsigned int ubrr = 0;
@@ -33,15 +22,7 @@ void init_bluetooth()
 	
 	// Möjliggör sändning, mottagning
 	UCSRB = (1<<RXEN)|(1<<TXEN);
-	PORTD |= (UMSEL<<PORTD4); // Titta på UMSEL på pin18
-	// Dubbel överföringshastighet
-	// UCSRA |= (1<<U2X);
-	
-	
-	
-	
-	
-	
+
 	// Data format: 8data, 1stop bit ligger som standard
 	UCSRC |= (1<<URSEL)|(1<<UCSZ0)|(1<<UCSZ1);
 	UCSRC &= ~(1<<USBS);
@@ -57,13 +38,22 @@ void bluetooth_transmit( unsigned int data )
 	UDR = data;
 }
 
+unsigned int bluetooth_recieve()
+{
+	while ( !(UCSRA & (1<<RXC)) )
+	{
+	}
+	return UDR;
+}
+
 int main(void)
 {
     init_bluetooth();
+	unsigned int recieved_data = 0;
     while (1) 
     {
-		bluetooth_transmit(0b01001100);
-		_delay_ms(500);
+		recieved_data = bluetooth_recieve();	// Vänta på att ta emot data
+		bluetooth_transmit(recieved_data);		// Återsänd mottagen data
     }
 }
 
