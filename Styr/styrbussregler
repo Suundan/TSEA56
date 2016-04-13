@@ -1,0 +1,301 @@
+/*
+* styrmedbuss.c
+*
+* Created: 2016-04-08 11:12:29
+* Author : Martin H
+*/
+
+#define F_CPU 1000000UL
+#include <avr/io.h>
+#include <avr/delay.h>
+#include <util/twi.h>
+#include <avr/interrupt.h>
+
+//uint8_t current_command = 01010011; //Börjar med S
+unsigned int test = 0;
+
+uint8_t kommData = 0b01010011;
+uint16_t US_sens_left = 0x0;
+
+//Avbrottsvektor
+ISR(TWI_vect){
+	
+	//Rätt adress mottagen, ackbit skickad
+	if ((TWSR & 0xF8) == 0x60 || (TWSR & 0xF8) == 0x70) {
+		
+		TWCR = (0<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		
+		while(!(TWCR & (1<<TWINT))); //Väntar på data
+		
+		//Data inte mottagen, ackbit inte skickad
+		if (!((TWSR & 0xF8) == 0x80 || (TWSR & 0xF8) == 0x90)) {
+			while(1){};
+		}
+		//Kommodulen skickar till oss
+		if (TWDR == 0x10) {
+			TWIRecieveFromCom();
+			return;
+		}
+		
+		if (TWDR == 0x20) {
+			TWIRecieveFromSens();
+			return;
+		}
+	}
+}
+
+//Initierar bussen
+void TWIInit(void) {
+	
+	//Globalt avbrott aktviverat
+	sei();
+	
+	//Sätter SCL hastigheten
+	TWSR = (0<<TWPS0)|(0<<TWPS1) ; //Sätter prescaler värdet till 1
+	TWBR = 0x0C; //Sätter bit rate registry till 12
+	
+	TWCR = (1<<TWEN)|(1<<TWEA)|(1<<TWIE);
+	
+	//Slavadresser (sista ska vara ett för att enabla general call)
+	//Kommmudul: 0x11
+	//Sensormodul: 0x21
+	//Styrmodul: 0x41
+	
+	TWAR = 0x41;
+}
+
+//Ta emot data från Kommodulen
+void TWIRecieveFromCom() {
+	
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		
+	while(!(TWCR & (1<<TWINT))); //Vänta på data
+		
+	//Data inte mottagen, ackbit inte skickad
+	if ((TWSR & 0xF8) != 0x80) {
+		while(1){};
+	}
+		
+	kommData = TWDR;
+
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	while(!(TWCR & (1<<TWINT))); //Väntar på stoppbit
+	
+	TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+}
+
+void TWIRecieveFromSens(void) {
+
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA); //Sätter avbrottsflaggan, aktiverar bussen, aktiverar ackflaggan
+	
+	while(!(TWCR & (1<<TWINT))); //Vänta på data
+	
+	//Data inte mottagen och ackbit inte mottagen
+	if ((TWSR & 0xF8) != 0x90) {
+		while(1){};
+	}
+	
+	uint8_t data = TWDR;
+	uint16_t data16 = (data << 8);
+	
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA); //Sätter avbrottsflaggan, aktiverar bussen, aktiverar ackflaggan
+	
+	while(!(TWCR & (1<<TWINT))); //Vänta på data
+	
+	//Data inte mottagen och ackbit inte mottagen
+	if ((TWSR & 0xF8) != 0x90) {
+		while(1){};
+	}
+	
+	data = TWDR;
+	data16 |= data;
+	US_sens_left = data16;
+	
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	while(!(TWCR & (1<<TWINT))); //Väntar på stoppbit
+	
+	//Om inte det är en stoppbit
+	if ((TWSR & 0xF8) != 0xA0) {
+		while(1){};
+	}
+	
+	TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+}
+
+void init_pwm()
+{
+	DDRD = 0b00110011; // PD0, PD1 Utångar, PD4,PD5 utgångar (enable OCR1A/B)
+	OCR1A = 0x0;
+	OCR1B = 0x0;
+	PORTD = (1<<PORTD0)|(0<<PORTD1); // DIR_RIGHT Direction framåt, DIR_LEFT framåt
+	TCCR1A |= (1<<COM1A1)| (0<<COM1A0)|(1<<COM1B1)|(0<<COM1B0)|(1<<WGM10)|(1<<WGM11); // Sätter den i fast PWM-mode 10 bit.
+	TCCR1B |= (0<<WGM13)|(1<<WGM12)|(1<<CS10)|(0<<CS12); // Noninverted med ingen prescaled klocka.
+}
+
+void forward(unsigned int speed_right, unsigned int speed_left)
+{
+	OCR1A = speed_left; // Sätter hastighet på (som andel av 0x03ff)
+	OCR1B = speed_right; // Sätter hastighet på (som andel av 0x03ff)
+	PORTD |= (1<<PORTD0); // DIR_RIGHT Direction framåt
+	PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
+}
+
+void backward(unsigned int speed_right, unsigned int speed_left)
+{
+	OCR1A = speed_left; // Sätter hastighet på (som andel av 0x03ff)
+	OCR1B = speed_right; // Sätter hastighet på (som andel av 0x03ff)
+	PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
+	PORTD |= (1<<PORTD1); // DIR_LEFT bakåt
+}
+
+void stop()
+{
+	OCR1A = 0x0; // Sätter hastighet noll på
+	OCR1B = 0x0; // Sätter hastighet noll på
+}
+
+void turn_left(unsigned int speed)
+{
+	PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
+	PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
+	OCR1A = speed;
+	OCR1B = speed;
+}
+
+void turn_right(unsigned int speed)
+{
+	PORTD |= (1<<PORTD0);
+	PORTD |= (1<<PORTD1);
+	OCR1A = speed;
+	OCR1B = speed;
+}
+
+int main(void)
+{
+	init_pwm(); //Sätter grundinställningar för PWM
+	
+	TWIInit(); //Initierar bussen
+
+	if (PINB0 == 1) // Manuellt läge
+	{
+		while (1)
+		{
+			switch(kommData)
+			{
+				case 0b01010011:	//Stopp
+				stop();
+				break;
+				case 0b01000110:	//Framåt
+				forward(0x123,0x123);
+				break;
+				case 0b01000010:	//Bakåt
+				backward(0x123,0x123);
+				break;
+				case 0b01001100:	//Vänster
+				turn_left(0x123);
+				break;
+				case 0b01010010:	//Höger
+				turn_right(0x123);
+				break;
+				case 0b01000101:	//Fram höger
+				forward(0x223,0xff);
+				break;
+				case 0b01010001:	//Fram vänster
+				forward(0xff,0x223);
+				break;
+				default:
+				stop();
+			}
+		}
+	}
+	
+	else // Automatiskt läge
+	{
+		uint16_t speed = 0x0F0;
+		uint16_t pre_sensor = 0x052E;
+		uint16_t sensor_in = 0x052E; 
+		unsigned int k_p = 1;
+		uint16_t p_term;
+		uint16_t ref_value = 0x052E;
+		uint16_t error = 0x0;
+		
+		//D-term
+		unsigned int k_d = 5;
+		signed int d_term;
+		
+		//tot
+		uint16_t pd_term = 0x0;
+		
+		while (1)
+		{
+			//Update sensor values
+			pre_sensor = sensor_in;
+			sensor_in = US_sens_left;
+			
+			//far to the right
+			if (sensor_in > ref_value){
+				
+				//how far to the right
+				error = sensor_in - ref_value;
+				//calc the p_term
+				p_term = k_p*error;
+				
+				if(p_term > speed)  p_term = speed;
+			
+				//TURN LEFT A LITTLE BIT
+				//MAX SPEED = 0x3FF
+				
+				if (pre_sensor > sensor_in) {
+					//increase left speed
+					d_term = k_d * (pre_sensor - sensor_in);
+					if (d_term > (p_term << 1)) d_term = (p_term << 1);
+					pd_term = p_term - d_term;
+					
+				}else{
+					//increase right speed
+					d_term = k_d * (sensor_in - pre_sensor);
+					if (d_term > (p_term << 1)) d_term = (p_term << 1);
+					pd_term = p_term + d_term;
+				}
+				if (speed - pd_term < 0x40) OCR1B = 0x60;
+				else OCR1B = speed - pd_term;
+				OCR1A = speed + pd_term;
+						
+			//else if far to the left:
+			} else {
+						
+				//how far to the left
+				error = ref_value - sensor_in;
+						
+				//calc the p_term
+				p_term = k_p*error;
+				
+				if(p_term > speed)  p_term = speed;
+						
+				//TURN RIGHT A LITTLE BIT
+				//MAX SPEED = 0x3FF
+				
+				if (pre_sensor > sensor_in) {
+					//increase left speed
+					d_term = k_d * (pre_sensor - sensor_in);
+					if (d_term > (p_term << 1)) d_term = (p_term << 1);
+					pd_term = p_term + d_term;
+					
+				}else{
+					//increase right speed
+					d_term = k_d * (sensor_in - pre_sensor);
+					if (d_term > (p_term << 1)) d_term = (p_term << 1);
+					pd_term = p_term - d_term;
+				}
+				
+				if (speed - pd_term < 0x40) OCR1A = 0x60;
+				else OCR1A = speed - pd_term;	
+				OCR1B = speed + pd_term; //LEFT 
+								
+			}
+			//_delay_ms(10);		
+		}
+	}
+}
