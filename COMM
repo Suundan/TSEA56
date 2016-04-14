@@ -1,0 +1,252 @@
+/*
+ * COM_TWI_BLUE.c
+ *
+ * Created: 4/11/2016 1:27:50 PM
+ *  Author: marha996
+ */ 
+
+#define F_CPU 1842000UL
+#include <avr/io.h>
+#include <util/twi.h>
+#include <avr/delay.h>
+#include <avr/interrupt.h>
+
+unsigned int recieved_data = 0;
+uint16_t US_sens_front_left = 0x0;
+uint16_t US_sens_back_left = 0x0;
+int dataRecieved = 0;
+
+ISR(USART_RXC_vect) {
+	TWITransmitData(UDR); 
+}
+
+ISR(TWI_vect){
+	
+	TWCR = (0<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA); //Avaktiverar avbrott, sätter avbrottsflaggan, aktiverar bussen, aktiverar ackflaggan
+	
+	while(!(TWCR & (1<<TWINT))); //Vänta på sändar-adressen
+	
+	//Data mottagen, ack mottagen
+	if (!((TWSR & 0xF8) == 0x80 || (TWSR & 0xF8) == 0x90)) {
+		while(1){};
+	}
+
+	TWIRecieveFromSens();
+	return;
+}
+
+void init_bluetooth()
+{
+	DDRD = 0b00000010; // Utgång på TXD
+	
+	//Inställningar för  BAUDRATE
+	unsigned int ubrr = 0;
+	UBRRH = (unsigned char)(ubrr>>8);
+	UBRRL = (unsigned char)ubrr;
+	
+	// Möjliggör sändning, mottagning samt interupt
+	UCSRB = (1<<RXEN)|(1<<TXEN)|(1<<RXCIE);
+
+	// Data format: 8data, 1stop bit ligger som standard
+	UCSRC |= (1<<URSEL)|(1<<UCSZ0)|(1<<UCSZ1);
+	UCSRC &= ~(1<<USBS);
+}
+
+//Initierar bussen
+void TWIInit(void) {
+	
+	//Globalt avbrott aktiverat
+	sei();
+	
+	//Sätter SCL hastigheten
+	TWSR = (0<<TWPS0)|(0<<TWPS1); //Sätter prescaler-värdet till 1
+	TWBR = 0x0C;  //Sätter bit rate registry till 12
+	
+	TWCR = (1<<TWEN)|(1<<TWEA)|(1<<TWIE); //Aktiverar bussen, avktiverar ackflaggan, aktiverar avbrott
+	
+	//Slavadress (sista ska vara ett för att enabla general call)
+	//Kommmudul: 0x11
+	//Sensormodul: 0x21
+	//Styrmodul: 0x41
+	
+	TWAR = 0x11;
+}
+
+void bluetooth_transmit( unsigned int data )
+{
+	// Vänta på tom sändbuffert
+	while ( !( UCSRA & (1<<UDRE)) )
+	{
+	}
+	// Lägg data i buffer, skickar data
+	UDR = data;
+}
+
+unsigned int bluetooth_recieve()
+{
+	while ( !(UCSRA & (1<<RXC)) );
+	return UDR;
+}
+
+//Skickar startbit
+void TWIStart(void) {
+	TWCR = (1<<TWSTA)|(1<<TWINT)|(0<<TWIE)|(1<<TWEN); //Skickar startbit, sätter avbrottsflaggan, avaktiverar avbrott, aktiverar bussen
+	while (!(TWCR & (1<<TWINT)));  //Väntar på att start-signalen ska skickas iväg ifall bussen är upptagen t.ex.
+}
+
+//Skickar stoppbit
+void TWIStop(void) {
+	TWCR = (1<<TWSTO)|(1<<TWINT)|(1<<TWIE)|(1<<TWEN)|(1<<TWEA); //Skickar stoppbit, sätter avbrottsflaggan, aktiverar avbrott, aktiverar bussen, aktiverar ackflaggan
+}
+
+//Skickar adress + data
+void TWITransmitData(uint8_t data) {
+	
+	TWIStart();
+	if (!((TWSR & 0xF8) == 0x08 || (TWSR & 0xF8) == 0x10)) {
+		PORTD = 0x80;
+		_delay_us(50);
+		PORTD = 0x00;
+		_delay_us(10);
+	}
+	
+	//Skickar mottagaradress
+	TWISend(0x40);
+	
+	if((TWSR & 0xF8) != 0x18) {
+		
+		PORTD = 0x40;
+		_delay_us(10);
+		PORTD = 0;
+		
+		//Kolla om arbitration lost
+		if ((TWSR & 0xF8) == 0x38) {
+			PORTD = 0x80;
+			_delay_us(10);
+			PORTD = 0x00;
+			_delay_us(10);
+			PORTD = 0x80;
+			_delay_us(10);
+			PORTD = 0x00;
+			_delay_us(10);
+			
+			TWIStop(); //Släpp kontroll av bussen
+			return;
+			
+		}
+		//"not ack" mottagen
+		if ((TWSR & 0xF8) == 0x20) {
+			
+			PORTD = 0x80;
+			_delay_us(50);
+			PORTD = 0x00;
+			_delay_us(10);
+			PORTD = 0x80;
+			_delay_us(50);
+			PORTD = 0x00;
+			
+			//Eventuellt fatal error badness 1000000000
+			//Kanske inte behöver skicka ett stoppvilkor utan att det räcker att skicka ett repeated start och hantera det i styr...
+			TWIStop();
+			TWITransmitData(data); //Nytt försök att skicka data
+			return;
+		}
+		
+	}
+	
+	//Skickar sändaradress
+	TWISend(0x10);
+	
+	//Data mottagen, "not ack" mottagen
+	if ((TWSR & 0xF8) != 0x28) {
+		
+		PORTD = 0x80;
+		_delay_us(200);
+		PORTD = 0x00;
+		_delay_us(10);
+		
+		//handle "not ack" received something very wrong has happened
+		
+		while(1){};
+	}
+	
+	//for (int i = 0; i < 2; i++) {
+	TWISend(data);
+	
+	//Data mottagen, "not ack" mottagen
+	if ((TWSR & 0xF8) != 0x28) {
+		
+		PORTD = 0x80;
+		_delay_us(200);
+		PORTD = 0x00;
+		_delay_us(10);
+		
+		//handle "not ack" received something very wrong has happened
+		
+		while(1){};
+	}
+	//}
+	
+	TWIStop();
+}
+
+//Skicka data
+void TWISend(uint8_t data) {
+	TWDR = data; //Sparar datan på TWDR
+	TWCR = (0<<TWSTA)|(1<<TWINT)|(1<<TWEN); //Skickar datan
+	
+	while (!(TWCR & (1<<TWINT))); //Väntar på ackbit
+}
+
+uint16_t Recieve16Data(void) {
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA); //Sätter avbrottsflaggan, aktiverar bussen, aktiverar ackflaggan
+	
+	while(!(TWCR & (1<<TWINT))); //Vänta på data
+	
+	//Data inte mottagen och ackbit inte mottagen
+	if ((TWSR & 0xF8) != 0x90) {
+		while(1){};
+	}
+
+	uint16_t data_16 = (TWDR << 8);
+	
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA); //Sätter avbrottsflaggan, aktiverar bussen, aktiverar ackflaggan
+	
+	while(!(TWCR & (1<<TWINT))); //Vänta på data
+	
+	//Data inte mottagen och ackbit inte mottagen
+	if ((TWSR & 0xF8) != 0x90) {
+		while(1){};
+	}
+	
+	data_16 |= TWDR;
+	return data_16;
+}
+
+void TWIRecieveFromSens(void) {
+	
+	US_sens_front_left = Recieve16Data();
+	US_sens_back_left = Recieve16Data();
+	
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	while(!(TWCR & (1<<TWINT))); //Väntar på stoppbit
+	
+	//Om inte det är en stoppbit
+	if ((TWSR & 0xF8) != 0xA0) {
+		//while(1){};
+	}
+	
+	TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+}
+
+
+int main(void)
+{
+	TWIInit();
+    init_bluetooth();
+    while (1) {
+		
+	}
+}
