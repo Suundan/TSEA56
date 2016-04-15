@@ -9,7 +9,6 @@
 #include <avr/interrupt.h>
 #include <avr/delay.h>
 uint16_t distance_foto = 0x00;
-uint8_t foto_measure = 0x00;
 int main(void)
 {
 	DDRA = 0b00000000;	//Sets all A-pins as inputs
@@ -20,29 +19,17 @@ int main(void)
 	ADCSRA |= (1<<ADSC);// Start the conversion
     while (ADCSRA |= (1<<ADSC)) 
     {
-		foto_measure = ADCH;
-		//PORTB = foto_measure;
-		while((foto_measure<=0x82) & (foto_measure>=0x78)){
-			foto_measure = ADCH;
-			}
-		while(foto_measure <= 0x78){
-				foto_measure = ADCH;
-			}
+		//PORTB = ADCH;
+		_delay_ms(5);
+		while(ADCH < 0x60){
+			ADCSRA |= (1<<ADSC);
+		}
+		_delay_ms(5);
+		while(ADCH > 0x96){
+			ADCSRA |= (1<<ADSC);
+		}
 		++distance_foto;
 		PORTB = distance_foto;
-		while((foto_measure<=0x82) & (foto_measure>=0x78)){
-			foto_measure = ADCH;
-			}
-		while(foto_measure >= 0x82){
-				foto_measure = ADCH;
-			}
-		++distance_foto;
-		PORTB = distance_foto;
-	
+		
 	}
 }
-		
-		
-    
-
-
