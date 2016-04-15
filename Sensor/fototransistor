@@ -19,17 +19,16 @@ int main(void)
 	ADCSRA |= (1<<ADSC);// Start the conversion
     while (ADCSRA |= (1<<ADSC)) 
     {
-		//PORTB = ADCH;
 		_delay_ms(5);
 		while(ADCH < 0x60){
-			ADCSRA |= (1<<ADSC);
+			ADCSRA |= (1<<ADSC);//Check if it is black
 		}
 		_delay_ms(5);
 		while(ADCH > 0x96){
-			ADCSRA |= (1<<ADSC);
+			ADCSRA |= (1<<ADSC);//Check if it is white
 		}
-		++distance_foto;
-		PORTB = distance_foto;
+		++distance_foto; //If it had been black and white after eachother and the other way around it counts 
+		//PORTB = distance_foto;
 		
 	}
 }
