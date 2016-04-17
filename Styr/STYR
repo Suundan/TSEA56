@@ -1,11 +1,11 @@
 /*
  * STYR.c
  *
- * Created: 4/14/2016 2:32:45 PM
- *  Author: marha996
+ * Created: 4/17/2016 2:49:41 PM
+ *  Author: marpr146
  */ 
 
- #define F_CPU 1000000UL
+ #define F_CPU 18540000UL
  #include <avr/io.h>
  #include <avr/delay.h>
  #include <util/twi.h>
@@ -15,8 +15,8 @@
  unsigned int test = 0;
  
  uint8_t kommData = 0b01010011;
- uint16_t US_sens_front_left = 0x0;
- uint16_t US_sens_back_left = 0x0;
+ uint16_t US_sens_front_left = 0x42E;
+ uint16_t US_sens_back_left = 0x42E;
  
  
  //Ta emot data från Kommodulen
@@ -215,80 +215,83 @@ uint16_t Recieve16Data(void) {
  		}
  	} else  {// Automatiskt läge
  		
-		uint16_t speed = 0x0F0;
- 		uint16_t sensor_back;
- 		uint16_t sensor_front;
- 		unsigned int k_p = 50;
+		uint16_t speed = 0x01FF;
+		uint16_t sens_back_left;
+ 		uint16_t sens_front_left;
+ 		int k_p = 35;
  		uint16_t p_term;
  		uint16_t ref_value = 0x042E;
  		uint16_t error = 0x0;
+		 
+		uint16_t k_d = 45;
+		uint16_t d_term;
+		
+		uint16_t pd_term;
  		
- 		//D-term
- 		unsigned int k_d = 0;
- 		signed int d_term;
- 		
- 		//tot
- 		uint16_t pd_term = 0x0;
- 		
+		 OCR1A = speed;
+		 OCR1B = speed;
+		 
  		while (1){
  			//Update sensor values
- 			sensor_front = US_sens_front_left;
- 			sensor_back = US_sens_back_left;
+ 			sens_front_left = US_sens_front_left;
+			sens_back_left = US_sens_back_left;
+			  
+			if (sens_front_left > ref_value) {
+				//to far to the right
+				//increase right speed
+				
+				error = sens_front_left - ref_value;
+				
+				//p-term:
+				p_term = k_p * (error / 100);
+				
+				//d-term:
+				if (sens_front_left > sens_back_left) {
+					//incline from left wall
+					//i.e. increase right speed
+					d_term = k_d * ((sens_front_left - sens_back_left) / 100);
+					pd_term = p_term + d_term;
+					
+				}else{
+					//incline towards left wall
+					//i.e. decrease right speed
+					d_term = k_d * ((sens_back_left - sens_front_left) / 100);
+					if ( d_term > p_term) d_term = p_term;
+					pd_term = p_term - d_term;
+				}
+				
+				if (pd_term > 0x01FA) pd_term = 0x01FA;
+				OCR1B = speed - pd_term; //left
+				OCR1A = speed + pd_term; //right
+				
+			} else {
+				//to far to the left
+				//increase left speed
+				error = ref_value - sens_front_left;
+				
+				//p-term:
+				p_term = k_p * (error / 100);
+				
+				//d-term:
+				if (sens_front_left > sens_back_left) {
+					//incline away from left wall
+					//i.e. decrease left speed
+					d_term = k_d * ((sens_front_left - sens_back_left) / 100);
+					if ( d_term > p_term) d_term = p_term;
+					pd_term = p_term - d_term;
+						
+				}else{
+					//incline towards left wall
+					//i.e. increase left speed
+					d_term = k_d * ((sens_back_left - sens_front_left) / 100);
+					pd_term = p_term + d_term;
+				}
+				
+				if (pd_term > 0x01FA) pd_term = 0x01FA;
+				OCR1B = speed + pd_term; //left
+				OCR1A = speed - pd_term; //right
+			}
  			
- 			//far to the right
- 			if (sensor_front > ref_value){
- 				
- 				//how far to the right
- 				error = sensor_front - ref_value;
- 				
-				//calc the p_term
- 				p_term = k_p * (error / 100); 
- 				
- 				if (sensor_back > sensor_front) {
- 					//increase left speed
- 					d_term = k_d * ( (sensor_back - sensor_front) / 100 );
- 					pd_term = p_term + d_term;
- 					
- 				}else{
- 					//increase right speed
- 					d_term = k_d * ( (sensor_front - sensor_back) / 100 );
- 					pd_term = p_term - d_term;
- 				}
-				 
- 				//if (speed < pd_term + 0x60) OCR1B = 0x60;
- 				//else 
-				OCR1B = speed + pd_term;
- 				
- 				//if (pd_term > speed *2) OCR1A = speed * 2;
- 				//else 
-				OCR1A = speed - pd_term;
- 				
- 				//else if far to the left:
- 			} else {
- 				
- 				//how far to the left
- 				error = ref_value - sensor_front;
- 				//calc the p_term
- 				p_term = k_p * (error / 100);
- 				
-				//if not straight			
- 				if (sensor_back > sensor_front) {
- 					//increase left speed
- 					d_term = k_d * ( (sensor_back - sensor_front) / 100 );
- 					pd_term = p_term - d_term;
- 					
- 				}else{
- 					//increase right speed
- 					d_term = k_d * ( (sensor_front - sensor_back) / 100 );
- 					pd_term = p_term + d_term;
- 				}
- 				
- 				if (speed < pd_term + 0x60) OCR1A = 0x60; //höger
- 				else OCR1A = speed + pd_term;
- 				if (pd_term > speed *2) OCR1B = speed * 2; //vänster
- 				else OCR1B = speed - pd_term;
- 				
- 			}
  		}
  	}
  }
