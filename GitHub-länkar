@@ -1,0 +1,23 @@
+De nödvändigaste kommandona:
+https://training.github.com/kit/downloads/github-git-cheat-sheet.pdf
+
+Lite mer text om hur man "gittar":
+http://readwrite.com/2013/09/30/understanding-github-a-journey-for-beginners-part-1/
+
+Git är smidigt när man projektar, men man bör vara lite försiktig.
+Kan delas upp i grenar, så man kan testa runt och leka lite utan att förstöra. Men när man är "färdiglekt" bör man "merga" ihop brancharna.
+
+
+
+
+git status     - Jämför dina lokala filer mot den uppladdade m.m..
+git pull       - Uppdatera lokala filer mot det uppladdat på github.
+
+För att ladda upp filer:
+git add filnamn
+git commit -m “Kommentar över vad du ändrat”
+git push
+
+git rm filnamn	- Tar bort en fil/mapp
+
+Klart. Skriv git status lite närsom för att se hur ni ligger till.
