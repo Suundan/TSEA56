@@ -201,13 +201,35 @@ void TWIRecieveFromSens(void) {
 	
 }
 
+void sendSensorData(void) {
+	bluetooth_transmit('s');
+	bluetooth_transmit(US_sens_front_left >> 8);
+	bluetooth_transmit(US_sens_front_left & 0xFF);
+	bluetooth_transmit(US_sens_back_left >> 8);
+	bluetooth_transmit(US_sens_back_left & 0xFF);
+}
+
 
 int main(void)
 {
     TWIInit();
     init_bluetooth();
+    int remotePin = 1;
 
-    while (1) {
+        while (1) {
+		
+		if (remotePin & comActive) 
+		{
+			remotePin = 0;
+			
+			if (PINB & (1<<PINB0)) bluetooth_transmit('r');	
+			
+			else bluetooth_transmit('n');
+		}
+		
+		if (!(PINB & (1<<PINB0)) ) sendSensorData();
+		
+		_delay_ms(100);
 		
 	}
 }
