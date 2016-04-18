@@ -204,7 +204,7 @@ void TWIRecieveFromSens(void) {
 
 int main(void)
 {
-	TWIInit();
+    TWIInit();
     init_bluetooth();
 
     while (1) {
