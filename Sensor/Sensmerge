@@ -1,0 +1,308 @@
+/*
+ * SENS_.c
+ *
+ * Created: 4/12/2016 8:28:57 AM
+ *  Author: marha996
+ */ 
+
+#define F_CPU 1842000UL
+#include <avr/io.h>
+#include <avr/delay.h>
+#include <stdio.h>
+#include <avr/interrupt.h>
+#include <util/twi.h>
+
+uint16_t US_sens_front_left = 0x0;
+uint16_t US_sens_back_left = 0x0;
+uint16_t US_sens_right = 0x0;
+uint16_t US_sens_ahead = 0x0;
+uint16_t distance_photo = 0x0;
+uint8_t velocity_gyro = 0x0;
+uint8_t IR_detector = 0x0;
+
+//Initierar bussen
+void TWIInit(void) {
+	
+	//Globalt avbrott aktiverat
+	sei();
+	
+	//Sätter SCL hastighet
+	TWSR = (0<<TWPS0)|(0<<TWPS1) ; //Sätter prescaler värdet till 1
+	TWBR = 0x0C;  //Sätter Bit rate registry till 12
+	
+	//Aktiverar bussen, aktiverar ackbit, aktiverar avbrott
+	TWCR = (1<<TWEN)|(1<<TWEA)|(1<<TWIE);
+	
+	//Slavadresser (sista ska vara ett för att enabla general call)
+	//Kommmudul: 0x11
+	//Sensormodul: 0x21
+	//Styrmodul: 0x41
+	
+	TWAR = 0x21;
+}
+
+//Skickar startbit
+void TWIStart(void) {
+	TWCR = (1<<TWSTA)|(1<<TWINT)|(0<<TWIE)|(1<<TWEN); //Skickar startbit, sätter avbrottsflaggan, avaktiverar avbrott, aktiverar bussen
+	while (!(TWCR & (1<<TWINT))); //Väntar på att start-signalen ska skickas iväg ifall bussen är upptagen t.ex.
+	
+	//Behöver ej kolla 0x08 eller 0x10, startbit eller repeterad startbit
+}
+
+//Skickar stoppbit
+void TWIStop(void) {
+	TWCR = (1<<TWSTO)|(1<<TWINT)|(1<<TWIE)|(1<<TWEN)|(1<<TWEA); //Skickar stoppbit, sätter avbrottsflaggan, aktiverar avbrott, aktviverar bussen, aktviterar ackbit
+}
+
+//Skickar adress + data
+void TWITransmitData(uint16_t US_sens_front_left, uint16_t US_sens_back_left, uint16_t US_sens_ahead, uint16_t US_sens_right, uint16_t distance_photo, uint8_t velocity_gyro, uint8_t IR_detector) {
+	
+	TWIStart();
+
+	//Skicka SLA + W, adress 00 för att det är general call (till alla slaves)
+	TWISend(0x00);
+	
+	//Arbitration lost, borde dock aldrig hamna här inne?!
+	if ((TWSR & 0xF8) == 0x38) {
+		TWIStop();
+		return;
+	}
+	//Om inte adress mottagen och inte "not ack" mottagen
+	if ((TWSR & 0xF8) == 0x20) {	
+		TWIStop();
+		return;
+	}
+
+	//Skickar sensormodulens adress
+	TWISend(0x20);
+	
+	//Send MSB US Front Left
+	uint8_t newData = US_sens_front_left >> 8;
+	TWISend(newData);
+	
+	//Send LSB US Front Left
+	newData = US_sens_front_left & 0xFF;
+	TWISend(newData);
+	
+	//Send MSB US Back Left
+	newData = US_sens_back_left >> 8;
+	TWISend(newData);
+	
+	//Send LSB US Back Left
+	newData = US_sens_back_left & 0xFF;
+	TWISend(newData);
+	
+	///////////////////////
+	//Send MSB US ahead
+	uint8_t newData = US_sens_ahead >> 8;
+	TWISend(newData);
+	
+	//Send LSB US ahead
+	newData = US_sens_ahead & 0xFF;
+	TWISend(newData);
+	
+	//Send MSB US right
+	newData = US_sens_right >> 8;
+	TWISend(newData);
+	
+	//Send LSB US right
+	newData = US_sens_right & 0xFF;
+	TWISend(newData);
+	///////////////
+	//Send MSB photo
+	uint8_t newData = distance_photo >> 8;
+	TWISend(newData);
+		
+	//Send LSB photo
+	newData = distance_photo & 0xFF;
+	TWISend(newData);
+		
+	//Send gyro
+	newData = velocity_gyro;
+	TWISend(newData);
+	
+	//Send IR detection
+	newData = IR_detector;
+	TWISend(newData);
+	
+	TWIStop();
+}
+
+//Skickar data
+void TWISend(uint8_t data) {
+	TWDR = data;
+	
+	TWCR = (0<<TWSTA)|(1<<TWINT)|(1<<TWEN); //Avaktiverar startflaggan och avbrottsflaggan, avktiverar bussen
+	
+	while (!(TWCR & (1<<TWINT))); //Väntar på ackbit
+	
+	//Om inte adress mottagen och inte "not ack" mottagen
+	if ((TWSR & 0xF8) == 0x30) {
+		//very bad....
+	}
+}
+
+void readFromSensFront(void) {
+	
+	// send pulse to US-sensor two, back left
+	PORTA = (1<<PORTA1); // Sätter PA1 till hög under bestämd tid
+	_delay_us(40);
+	PORTA = (0<<PORTA1);// Sätter PA1 till låg och startar mätningen
+	
+	//wait for us-sensor to start measuring
+	while(!(PINA & (1<<PORTA2)));
+
+	//Start counter
+	TCCR1B =(1<<CS10);
+	
+	//wait for final value from us-sensor
+	while(PINA & (1<<PORTA2));
+
+	//Stops counter
+	TCCR1B = (0<<CS10);
+	
+	//Read counter
+	US_sens_front_left = TCNT1;
+	
+	//reset counter
+	TCNT1 = 0x0;
+}
+
+void readFromSensBack(void) {
+	
+	// send pulse to US-sensor two, back left
+	PORTA = (1<<PORTA3); // Sätter PA1 till hög under bestämd tid
+	_delay_us(40);
+	PORTA = (0<<PORTA3);// Sätter PA1 till låg och startar mätningen
+	
+	//wait for us-sensor to start measuring
+	while(!(PINA & (1<<PORTA4)));
+
+	//Start counter
+	TCCR1B =(1<<CS10);
+	
+	//wait for final value from us-sensor
+	while(PINA & (1<<PORTA4));
+
+	//Stops counter
+	TCCR1B = (0<<CS10);
+	
+	//Read counter
+	US_sens_back_left = TCNT1;
+	
+	//reset counter
+	TCNT1 = 0x0;
+}
+
+void readFromSensRight(void) {
+	
+	// send pulse to US-sensor two, back left
+	PORTA = (1<<PORTA5); // Sätter PA1 till hög under bestämd tid
+	_delay_us(40);
+	PORTA = (0<<PORTA5);// Sätter PA1 till låg och startar mätningen
+	
+	//wait for us-sensor to start measuring
+	while(!(PINA & (1<<PORTA6)));
+
+	//Start counter
+	TCCR1B =(1<<CS10);
+	
+	//wait for final value from us-sensor
+	while(PINA & (1<<PORTA6));
+
+	//Stops counter
+	TCCR1B = (0<<CS10);
+	
+	//Read counter
+	US_sens_right = TCNT1;
+	
+	//reset counter
+	TCNT1 = 0x0;
+}
+
+void readFromSensAhead(void){
+	
+	// send pulse to US-sensor ahead
+	PORTB = (1<<PORTB0); // Sätter PA1 till hög under bestämd tid
+	_delay_us(40);
+	PORTB = (0<<PORTB0);// Sätter PA1 till låg och startar mätningen
+	
+	//wait for us-sensor to start measuring
+	while(!(PINB & (1<<PORTB1)));
+
+	//Start counter
+	TCCR1B =(1<<CS10);
+	
+	//wait for final value from us-sensor
+	while(PINB & (1<<PORTB1));
+
+	//Stops counter
+	TCCR1B = (0<<CS10);
+	
+	//Read counter
+	US_sens_ahead = TCNT1;
+	
+	//reset counter
+	TCNT1 = 0x0;
+}
+
+void read_IR(void){
+	//TODO: search IR
+	IR_detector = 0x0;
+}
+
+void init_photo_distance(void)
+{
+	DDRA = 0b00000000;	//Sets all A-pins as inputs
+	ADMUX = 0x67;		//Leftshift the output from the ad-converter (reads from ADCH) and sets A7 as input
+	ADCSRA = 0x83;		//Sets up the ad-converter to enable and prescale with 8
+	DDRB = 0xff;		// Sets all B-pins to outputs
+	PORTB = 0x00;		// Initialize the B-port to ceros
+	ADCSRA |= (1<<ADSC);// Start the conversion
+	while(1){
+			while (ADIF == 0);
+			while(ADCH < 0x60){
+				ADCSRA |= (1<<ADSC); //Check if it is black(distance_photo)
+				while(ADIF == 0);
+					}
+				
+			while(ADCH > 0x96){
+				ADCSRA |= (1<<ADSC);//Check if it is white(distance_photo)
+				while(ADIF == 0);
+				}
+			++distance_photo;
+			return;
+			}
+
+}
+
+void gyro(void)
+{
+	DDRA = 0b00000000;	//Sets all A-pins as inputs
+	ADMUX=0x60;			//Leftshift the output from the ad-converter (reads from ADCH) and sets A0 as input
+	ADCSRA=0x83;		//Sets up the ad-converter to enable and prescale with 8
+	ADCSRA |= (1<<ADSC);// Start the conversasion
+	velocity_gyro= ADCH ; // The velocity is the output from the conversion minus the bias
+}
+
+int main(void)
+{
+	//Init of sensorreading
+    DDRA = (1 << PORTA1)|(1 << PORTA3); //PA1 and PA3 to out
+	TWIInit();
+	init_photo_distance();
+	    while (1) 
+    {
+		read_IR();
+		gyro();
+		readFromSensAhead();
+		readFromSensRight();
+		readFromSensFront();
+		_delay_ms(5);
+		readFromSensBack();
+		_delay_ms(5);
+						
+		TWITransmitData(US_sens_front_left, US_sens_back_left, US_sens_ahead, US_sens_right, distance_photo, velocity_gyro, IR_detector);
+		
+	}
+}
