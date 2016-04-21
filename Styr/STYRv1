@@ -217,7 +217,48 @@ uint8_t Recieve8Data(void) {
 	 
 	 kommData = 'S';
  } 
+void rotate_90_right(){
  
+ //left-wise (anti-clock) rotation increases gyro
+ PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
+ PORTD |= (1<<PORTD1); // DIR_LEFT framåt
+ OCR1A = speed;
+ OCR1B = speed;
+ 
+ uint16_t sum_velocity = 0x0;
+ 
+ while(sum_velocity < 0x108F)
+ {
+	 signed int temp;
+	 if (Gyro_sens < 0xAC) temp = 0xAC - Gyro_sens;
+	 else temp = Gyro_sens - 0xAC;
+	 sum_velocity = sum_velocity + temp;
+	 _delay_ms(6);
+ }
+ 
+ kommData = 'S';	
+}
+ 
+rotate_180(){
+	//left-wise (anti-clock) rotation increases gyro
+	PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
+	PORTD |= (1<<PORTD1); // DIR_LEFT framåt
+	OCR1A = speed;
+	OCR1B = speed;
+	 
+	uint16_t sum_velocity = 0x0;
+	 
+	while(sum_velocity < 0x2285)
+	 {
+		 signed int temp;
+		 if (Gyro_sens < 0xAC) temp = 0xAC - Gyro_sens;
+		 else temp = Gyro_sens - 0xAC;
+		 sum_velocity = sum_velocity + temp;
+		 _delay_ms(6);
+	 }
+	 
+	 kommData = 'S';
+}
  void turn_right(unsigned int speed)
  {
  	PORTD |= (1<<PORTD0);
@@ -276,8 +317,14 @@ uint8_t Recieve8Data(void) {
 			  case 0b01010001:	//Fram vänster
 			  forward(0xff,0x223);
 			  break;
-			  case 'r':
+			  case 'v':
 			  rotate_90_left();
+			  break;
+			  case 'r':
+			  rotate_90_right();
+			  break;
+			  case 'u':
+			  rotate_180();
 			  break;
 			  case 'l':
 			  lowerClaw();
