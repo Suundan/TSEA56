@@ -32,10 +32,20 @@ int roboPos[2];
 signed int rowDir;
 signed int colDir;
 
+int comActive = 0;
+
 //Interrupt from firefly
 ISR(USART_RXC_vect) {
+	
+	uint8_t temp = UDR;
+	if (temp = 'e')
+	{
+		comActive = 1;
+		return;
+	}
+	
 	//Send data to buss
-	TWITransmitData(UDR);
+	TWITransmitData(temp);
 }
 
 //Interrupt from TWI-bus
@@ -315,10 +325,11 @@ int travelledBoxes(){
 	return round(travelledDist / 40);
 }
 
+
 void goForward(){
 	//Go forward, adjust to wall
-	//TODO: go forward until next decision, don't forget to update map
-	TWITransmitData('p');
+	//TODO: check if right char, go forward until next decision, don't forget to update map
+	TWITransmitData('f');
 	
 	//Update map
 	mapArray[roboPos[1]][roboPos[2]] = 'c';
@@ -329,7 +340,8 @@ void goForward(){
 }
 
 void turnLeft(){
-	//Turn left, 90 degrees
+	//Turn left
+	//TODO: check if right char
 	TWITransmitData('v');
 	
 	//Update direction
@@ -346,7 +358,8 @@ void turnLeft(){
 }
 
 void turnRight(){
-	//Turn right, 90 degrees
+	//Turn right
+	//TODO: check if right char
 	TWITransmitData('r');
 	
 	//Update direction
@@ -363,22 +376,22 @@ void turnRight(){
 }
 
 void goShort(){
-	//Go forward, ca 30 cm
-	TWITransmitData('s');
-	//TODO: Update robot pos
+	//Åk fram en kortis, typ 10 cm
+	//TODO
 }
 
+
 void goLong(){
-	//Go forward, ca 40 cm
-	TWITransmitData('k');
-	//TODO: Update robot pos
+	//Åk fram en längre kortis, typ 40 cm
+	//TODO
+	
 }
 
 void controlDecision(){
 	//If left sensor value is larger than 40 cm
 	if (US_sens_front_left > 0x10B8)
 	{
-		goShort();
+		goLong();
 		
 		//Update map, this is a decision node
 		mapArray[roboPos[1]][roboPos[2]] = 'd';
@@ -393,7 +406,7 @@ void controlDecision(){
 				if (mapArray[roboPos[1]][roboPos[2]+rowDir] != 'c')
 				{
 					turnLeft();
-					goLong();
+					goShort();
 					goForward();
 				}
 				else if (mapArray[roboPos[1]+rowDir][roboPos[2]] != 'c')
@@ -404,7 +417,7 @@ void controlDecision(){
 				else
 				{
 					turnRight();
-					goLong();
+					goShort();
 					goForward();
 				}
 			}
@@ -414,7 +427,7 @@ void controlDecision(){
 				if (mapArray[roboPos[1]-colDir][roboPos[2]] != 'c')
 				{
 					turnLeft();
-					goLong();
+					goShort();
 					goForward();
 				}
 				else if (mapArray[roboPos[1]][roboPos[2]+colDir] != 'c')
@@ -425,7 +438,7 @@ void controlDecision(){
 				else
 				{
 					turnRight();
-					goLong();
+					goShort();
 					goForward();
 				}
 			}
@@ -468,7 +481,7 @@ void controlDecision(){
 		//Three-way intersection as in pic 5
 		else if (US_sens_ahead > 0x10B8 & US_sens_right <= 0x042E)
 		{
-			goShort();
+			goLong();
 			
 			//Update map, this is a decision node
 			mapArray[roboPos[1]][roboPos[2]] = 'd';
@@ -477,13 +490,13 @@ void controlDecision(){
 			if (mapArray[roboPos[1]+1][roboPos[2]] != 'c')
 			{
 				turnLeft();
-				goLong();
+				goShort();
 				goForward();
 			}
 			else
 			{
 				goLong();
-				goForward();	
+				goForward();
 			}
 			
 			//Update map
@@ -494,7 +507,7 @@ void controlDecision(){
 		//Three-way intersection as in pic 3
 		else if (US_sens_right > 0x10B8 & US_sens_ahead <= 0x042E)
 		{
-			goShort();
+			goLong();
 			
 			//Update map, this is a decision node
 			mapArray[roboPos[1]][roboPos[2]] = 'd';
@@ -503,31 +516,31 @@ void controlDecision(){
 			if (mapArray[roboPos[1]][roboPos[2]-1] != 'c')
 			{
 				turnLeft();
-				goLong();
+				goShort();
 				goForward();
-			} 
+			}
 			else
 			{
 				turnRight();
-				goLong();
-				goForward();  
+				goShort();
+				goForward();
 			}
 			
 		}
 		//Corner, turn left as in pic 2
 		else // (US_sens_ahead <= 0x042E & US_sens_right <= 0x042E)
 		{
-			goShort();
+			goLong();
 			
 			turnLeft();
-			goLong();
+			goShort();
 			goForward();
 		}
 	}
 	//If right sensor value is larger than 40 cm
 	else if (US_sens_right > 0x10B8)
 	{
-		goShort();
+		goLong();
 		
 		mapArray[roboPos[1]][roboPos[2]] == 'd';
 		
@@ -538,11 +551,11 @@ void controlDecision(){
 			{
 				goLong();
 				goForward();
-			} 
+			}
 			else
 			{
 				turnRight();
-				goLong();
+				goShort();
 				goForward();
 			}
 		}
@@ -550,7 +563,7 @@ void controlDecision(){
 		else // (US_sens_ahead <= 0x042E & US_sens_front_left <= 0x042E)
 		{
 			turnRight();
-			goLong();
+			goShort();
 			goForward();
 		}
 	}
@@ -573,10 +586,26 @@ int main(void)
 	TWIInit();
 	init_bluetooth();
 	mapInit();
-	int remotePin = 1;
+	int remotePin = 0;
 	
 	while (1)
 	{
+		if (comActive)
+		{
+			if (PINB & (1<<PINB0) != remotePin) 
+			{
+				if (remotePin = 0)
+				{
+					bluetooth_transmit('r');
+					remotePin = 1;
+				}
+				else
+				{
+					bluetooth_transmit('n');
+					remotePin = 0;
+				}
+			}
+		}
 		sendSensorData();
 		_delay_ms(500);
 	}
