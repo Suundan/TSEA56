@@ -15,6 +15,9 @@
 uint16_t US_sens_front_left = 0x0;
 uint16_t US_sens_back_left = 0x0;
 uint8_t Gyro_sens = 0x0;
+uint16_t distance_photo = 0x00;
+unsigned int black_white_check= 0;
+uint16_t photo_value = 0x0;
 
 //Initierar bussen
 void TWIInit(void) {
@@ -42,7 +45,10 @@ void GyroInit(void) {
 	ADCSRA = 0x83;		//Sets up the ad-converter to enable and prescale with 8
 	
 }
-
+void PhotoInit(void){
+		ADMUX = 0x67;		//Leftshift the output from the ad-converter (reads from ADCH) and sets A7 as input
+		ADCSRA = 0x83;		//Sets up the ad-converter to enable and prescale with 8
+}
 //Skickar startbit
 void TWIStart(void) {
 	TWCR = (1<<TWSTA)|(1<<TWINT)|(0<<TWIE)|(1<<TWEN); //Skickar startbit, sätter avbrottsflaggan, avaktiverar avbrott, aktiverar bussen
@@ -57,7 +63,7 @@ void TWIStop(void) {
 }
 
 //Skickar adress + data
-void TWITransmitData(uint16_t data1, uint16_t data2, uint8_t data3) {
+void TWITransmitData(uint16_t data1, uint16_t data2, uint8_t data3, uint16_t data4) {
 	
 	TWIStart();
 
@@ -95,6 +101,14 @@ void TWITransmitData(uint16_t data1, uint16_t data2, uint8_t data3) {
 	TWISend(newData);
 	
 	TWISend(data3);
+	
+	//Send MSB data4
+	newData = data4 >> 8;
+	TWISend(newData);
+	
+	//Send LSB data4
+	newData = data4 & 0xFF;
+	TWISend(newData);
 	
 	TWIStop();
 }
@@ -167,6 +181,7 @@ void readFromSensBack(void) {
 
 void readFromGyro(void)
 {
+	GyroInit();
 	ADCSRA |= (1<<ADSC);// Start the conversion
 	
 	while( !(ADCSRA & (1<<ADIF)));
@@ -174,13 +189,52 @@ void readFromGyro(void)
 	Gyro_sens = ADCH;
 	
 }
+void readFromPhoto(void)
+{
+	PhotoInit();
+	ADCSRA |= (1<<ADSC);// Start the conversion
+	while( !(ADCSRA & (1<<ADIF)));//wait for conversion complete
+	photo_value = ADCH;
+		if(black_white_check ==1){//if black before, check if white now, if true ++distance
+			if(ADCH > 0xC8){
+				++distance_photo;
+				black_white_check = 0;
+			}
+			else{
+				return;
+			}
+		}else{
+			if(ADCH < 0x64){//if white before, check if black now, if true ++distance
+				++distance_photo;
+				black_white_check = 1;
+			}
+			else{
+				return;
+			}
+		}
+		
+		/*
+		if(ADCH < 0x55){
+			black_white_check = 1;
+		}
+		
+		while(ADCH > 0x82){
+			ADCSRA |= (1<<ADSC);//Check if it is white(distance_photo)
+			while(ADIF == 0);
+		}
+		
+		++distance_photo;
+		return;*/
+
+
+}
 
 int main(void)
 {
 	//Init of sensorreading
     DDRA = (1 << PORTA1)|(1 << PORTA3); //PA1 and PA3 to out, PA0 in
 	TWIInit();
-	GyroInit();
+	//GyroInit();
 	unsigned int loop= 0;
 	
     while (1) 
@@ -198,9 +252,11 @@ int main(void)
 			loop = 0;
 		}
 		readFromGyro();
+		readFromPhoto();
 		
-		TWITransmitData(US_sens_front_left, US_sens_back_left, Gyro_sens);
+		TWITransmitData(US_sens_front_left, US_sens_back_left, Gyro_sens, distance_photo);
 		
 		_delay_ms(5);
+		
 	}
 }
