@@ -607,6 +607,6 @@ int main(void)
 			}
 		}
 		sendSensorData();
-		_delay_ms(500);
+		_delay_ms(100);
 	}
 }
