@@ -19,7 +19,6 @@ uint16_t US_sens_ahead = 0x0;
 uint16_t distance_photo = 0x0;
 uint8_t velocity_gyro = 0x0;
 uint8_t IR_detector = 0x0;
-uint8_t IR_beacon_found = 0x0;
 
 //Initierar bussen
 void TWIInit(void) {
@@ -248,8 +247,43 @@ void readFromSensAhead(void){
 }
 
 void read_IR(void){
-	//TODO: search IR
-	IR_detector = 0x0;
+	DDRA = 0b00000000;	//Sets all A-pins as inputs
+	DDRB = 0xff;		// Sets all B-pins to outputs
+	for(int i=0; i<35000; i++)
+	{
+		if((PINA & 0x01) == 0x00)
+		{
+			_delay_us(2300);
+			if((PINA & 0x01) == 0x01)
+			{		
+				_delay_us(450);
+				if((PINA & 0x01) == 0x00)
+				{
+					_delay_us(450);
+					if((PINA & 0x01) == 0x01)
+					{								
+						_delay_us(450);
+						if((PINA & 0x01) == 0x00)
+						{																		
+							_delay_us(450);
+							if((PINA & 0x01) == 0x01)
+							{
+								IR_detector = 0xff;
+								return 0;
+								/*
+								_delay_us(850);
+								if((PINA & 0x01) == 0x00)
+								{
+									IR_detector = 0xff;
+									return 0;
+								}*/
+							}
+						}
+					}
+				}
+			}
+		}		
+	}	
 }
 
 void init_photo_distance(void)
@@ -285,50 +319,6 @@ void gyro(void)
 	ADCSRA |= (1<<ADSC);// Start the conversasion
 	velocity_gyro= ADCH ; // The velocity is the output from the conversion minus the bias
 }
-
-void ir_beacon(void)
-{
-	DDRA = 0b00000000;	//Sets all A-pins as inputs
-	DDRB = 0xff;		// Sets all B-pins to outputs
-	PORTB= 0x08;		// Initialize the B-port to zeros
-	for(int i=0; i<35000; i++)
-	{
-		if((PINA & 0x01) == 0x00)
-		{
-			_delay_us(2300);
-			if((PINA & 0x01) == 0x01)
-			{		
-				_delay_us(450);
-				if((PINA & 0x01) == 0x00)
-				{
-					_delay_us(450);
-					if((PINA & 0x01) == 0x01)
-					{								
-						_delay_us(450);
-						if((PINA & 0x01) == 0x00)
-						{																		
-							_delay_us(450);
-							if((PINA & 0x01) == 0x01)
-							{
-								uint8_t IR_beacon_found = 0xff;
-								return 0;
-								/*
-								_delay_us(850);
-								if((PINA & 0x01) == 0x00)
-								{
-									ir_detector = 0x0f;
-									PORTB = ir_detector;
-									return 0;
-								}*/
-							}
-						}
-					}
-				}
-			}
-		}		
-	}
-}
-
 
 
 int main(void)
