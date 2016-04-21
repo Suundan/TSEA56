@@ -1,0 +1,47 @@
+#include "KeyReaderForm.h"
+#include "PC_Unit.h"
+#include <Windows.h>
+
+System::Void CppWinForm1::KeyReaderForm::KeyReaderForm_KeyUp(System::Object^  sender, System::Windows::Forms::KeyEventArgs^  e) {
+	CppWinForm1::PC_Unit::send("S");
+	CppWinForm1::PC_Unit::writeToUser("\"S\" sent");
+}
+
+System::Void CppWinForm1::KeyReaderForm::KeyReaderForm_KeyDown(System::Object ^ sender, System::Windows::Forms::KeyEventArgs ^ e)
+{
+	//CppWinForm1::PC_Unit::writeToUser("INSIDE KEYDOWN");
+	// key 'Q' is for forward left
+	// key 'W' translates to 'F' as in "forward"
+	// key 'E' is for forward right
+	// key 'A' translates to 'L' as in "left"
+	// key 'S' translates to 'B' as in "backward"
+	// key 'D' translates to 'R' as in "right"
+	switch (e->KeyCode)
+	{
+	case System::Windows::Forms::Keys::Q:
+		CppWinForm1::PC_Unit::send("Q");
+		CppWinForm1::PC_Unit::writeToUser("\"Q\" sent");
+		break;
+	case System::Windows::Forms::Keys::W:
+		CppWinForm1::PC_Unit::send("F");
+		CppWinForm1::PC_Unit::writeToUser("\"W\" sent");
+		break;
+	case System::Windows::Forms::Keys::E:
+		CppWinForm1::PC_Unit::send("E");
+		CppWinForm1::PC_Unit::writeToUser("\"E\" sent");
+		break;
+	case System::Windows::Forms::Keys::A:
+		CppWinForm1::PC_Unit::send("L");
+		CppWinForm1::PC_Unit::writeToUser("\"A\" sent");
+		break;
+	case System::Windows::Forms::Keys::S:
+		CppWinForm1::PC_Unit::send("B");
+		CppWinForm1::PC_Unit::writeToUser("\"S\" sent");
+		break;
+	case System::Windows::Forms::Keys::D:
+		CppWinForm1::PC_Unit::send("R");
+		CppWinForm1::PC_Unit::writeToUser("\"D\" sent");
+		break;
+	}
+	return System::Void();
+}
