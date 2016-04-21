@@ -15,6 +15,7 @@ unsigned int recieved_data = 0;
 uint16_t US_sens_front_left = 0x0;
 uint16_t US_sens_back_left = 0x0;
 uint8_t Gyro_sens = 0x0;
+uint16_t Photo_distance = 0x0;
 int dataRecieved = 0;
 int comActive = 0;
 
@@ -207,6 +208,7 @@ void TWIRecieveFromSens(void) {
 	US_sens_front_left = Recieve16Data();
 	US_sens_back_left = Recieve16Data();
 	Gyro_sens = Recieve8Data();
+	Photo_distance = Recieve16Data();
 	
 	//Ready to recieve stop condition
 	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
@@ -229,6 +231,8 @@ void sendSensorData(void) {
 	bluetooth_transmit(US_sens_back_left >> 8);
 	bluetooth_transmit(US_sens_back_left & 0xFF);
 	bluetooth_transmit(Gyro_sens);
+	bluetooth_transmit(Photo_distance >> 8);
+	bluetooth_transmit(Photo_distance & 0xFF);
 	
 }
 
