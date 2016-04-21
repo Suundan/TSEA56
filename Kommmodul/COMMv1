@@ -315,11 +315,10 @@ int travelledBoxes(){
 	return round(travelledDist / 40);
 }
 
-
 void goForward(){
 	//Go forward, adjust to wall
-	//TODO: check if right char, go forward until next decision, don't forget to update map
-	TWITransmitData('f');
+	//TODO: go forward until next decision, don't forget to update map
+	TWITransmitData('p');
 	
 	//Update map
 	mapArray[roboPos[1]][roboPos[2]] = 'c';
@@ -330,8 +329,7 @@ void goForward(){
 }
 
 void turnLeft(){
-	//Turn left
-	//TODO: check if right char
+	//Turn left, 90 degrees
 	TWITransmitData('v');
 	
 	//Update direction
@@ -348,8 +346,7 @@ void turnLeft(){
 }
 
 void turnRight(){
-	//Turn right
-	//TODO: check if right char
+	//Turn right, 90 degrees
 	TWITransmitData('r');
 	
 	//Update direction
@@ -366,22 +363,22 @@ void turnRight(){
 }
 
 void goShort(){
-	//Åk fram en kortis, typ 10 cm
-	//TODO
+	//Go forward, ca 30 cm
+	TWITransmitData('s');
+	//TODO: Update robot pos
 }
 
-
 void goLong(){
-	//Åk fram en längre kortis, typ 40 cm
-	//TODO
-	
+	//Go forward, ca 40 cm
+	TWITransmitData('k');
+	//TODO: Update robot pos
 }
 
 void controlDecision(){
 	//If left sensor value is larger than 40 cm
 	if (US_sens_front_left > 0x10B8)
 	{
-		goLong();
+		goShort();
 		
 		//Update map, this is a decision node
 		mapArray[roboPos[1]][roboPos[2]] = 'd';
@@ -396,7 +393,7 @@ void controlDecision(){
 				if (mapArray[roboPos[1]][roboPos[2]+rowDir] != 'c')
 				{
 					turnLeft();
-					goShort();
+					goLong();
 					goForward();
 				}
 				else if (mapArray[roboPos[1]+rowDir][roboPos[2]] != 'c')
@@ -407,7 +404,7 @@ void controlDecision(){
 				else
 				{
 					turnRight();
-					goShort();
+					goLong();
 					goForward();
 				}
 			}
@@ -417,7 +414,7 @@ void controlDecision(){
 				if (mapArray[roboPos[1]-colDir][roboPos[2]] != 'c')
 				{
 					turnLeft();
-					goShort();
+					goLong();
 					goForward();
 				}
 				else if (mapArray[roboPos[1]][roboPos[2]+colDir] != 'c')
@@ -428,7 +425,7 @@ void controlDecision(){
 				else
 				{
 					turnRight();
-					goShort();
+					goLong();
 					goForward();
 				}
 			}
@@ -471,7 +468,7 @@ void controlDecision(){
 		//Three-way intersection as in pic 5
 		else if (US_sens_ahead > 0x10B8 & US_sens_right <= 0x042E)
 		{
-			goLong();
+			goShort();
 			
 			//Update map, this is a decision node
 			mapArray[roboPos[1]][roboPos[2]] = 'd';
@@ -480,7 +477,7 @@ void controlDecision(){
 			if (mapArray[roboPos[1]+1][roboPos[2]] != 'c')
 			{
 				turnLeft();
-				goShort();
+				goLong();
 				goForward();
 			}
 			else
@@ -497,7 +494,7 @@ void controlDecision(){
 		//Three-way intersection as in pic 3
 		else if (US_sens_right > 0x10B8 & US_sens_ahead <= 0x042E)
 		{
-			goLong();
+			goShort();
 			
 			//Update map, this is a decision node
 			mapArray[roboPos[1]][roboPos[2]] = 'd';
@@ -506,13 +503,13 @@ void controlDecision(){
 			if (mapArray[roboPos[1]][roboPos[2]-1] != 'c')
 			{
 				turnLeft();
-				goShort();
+				goLong();
 				goForward();
 			} 
 			else
 			{
 				turnRight();
-				goShort();
+				goLong();
 				goForward();  
 			}
 			
@@ -520,17 +517,17 @@ void controlDecision(){
 		//Corner, turn left as in pic 2
 		else // (US_sens_ahead <= 0x042E & US_sens_right <= 0x042E)
 		{
-			goLong();
+			goShort();
 			
 			turnLeft();
-			goShort();
+			goLong();
 			goForward();
 		}
 	}
 	//If right sensor value is larger than 40 cm
 	else if (US_sens_right > 0x10B8)
 	{
-		goLong();
+		goShort();
 		
 		mapArray[roboPos[1]][roboPos[2]] == 'd';
 		
@@ -545,7 +542,7 @@ void controlDecision(){
 			else
 			{
 				turnRight();
-				goShort();
+				goLong();
 				goForward();
 			}
 		}
@@ -553,7 +550,7 @@ void controlDecision(){
 		else // (US_sens_ahead <= 0x042E & US_sens_front_left <= 0x042E)
 		{
 			turnRight();
-			goShort();
+			goLong();
 			goForward();
 		}
 	}
