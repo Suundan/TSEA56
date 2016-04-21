@@ -297,7 +297,7 @@ void sendMap(char map[mapRows][mapCols]){
 	for(int i = 0; i < mapRows; i++){
 		for (int j = 0; j < mapCols; j++)
 		{
-			if (map[i][j] == 'd' | map[i][j] == 'c')
+			if ((map[i][j] == 'd') | (map[i][j] == 'c'))
 			{
 				bluetooth_transmit('o');
 			}
@@ -338,7 +338,7 @@ void check_dist(){
 
 //checks if in a intersection
 void check_cross(){
-	if (US_sens_front_left >= 0x085C | US_sens_right >= 0x085C)
+	if ((US_sens_front_left >= 0x085C) | (US_sens_right >= 0x085C))
 	{
 		//Stop and make decision
 		TWITransmitData('s');
@@ -403,7 +403,7 @@ void controlDecision(){
 	if (US_sens_front_left > 0x085C)
 	{
 		//Four-way intersection
-		if (US_sens_right > 0x085C & US_sens_ahead > 0x085C)
+		if ((US_sens_right > 0x085C) & (US_sens_ahead > 0x085C))
 		{
 			//Turn left if uncharted
 			//Direction: up or down
@@ -514,7 +514,7 @@ void controlDecision(){
 			mapArray[roboPos[1]+1][roboPos[2]] == 'o';
 		}
 		//Three-way intersection as in pic 3
-		else if (US_sens_right > 0x085C & US_sens_ahead <= 0x085C)
+		else if ((US_sens_right > 0x085C) & (US_sens_ahead <= 0x085C))
 		{
 			//Turn left if uncharted
 			if (mapArray[roboPos[1]][roboPos[2]-1] != 'c')
@@ -548,7 +548,7 @@ void controlDecision(){
 	else if (US_sens_right > 0x085C)
 	{
 		//Three-way intersection as in pic 4
-		if (US_sens_ahead > 0x085C & US_sens_front_left <= 0x085C)
+		if ((US_sens_ahead > 0x085C) & (US_sens_front_left <= 0x085C))
 		{
 			if (mapArray[roboPos[1]][roboPos[2]+1] != 'c')
 			{
@@ -574,7 +574,7 @@ void controlDecision(){
 		}
 	}
 	//Dead-end as in pic 7
-	else if (US_sens_ahead < 0x085C & US_sens_right < 0x085C & US_sens_front_left < 0x085C)
+	else if ((US_sens_ahead < 0x085C) & (US_sens_right < 0x085C) & (US_sens_front_left < 0x085C))
 	{
 		//Turn 180 degrees and go back to decision point
 		TWITransmitData('u');
