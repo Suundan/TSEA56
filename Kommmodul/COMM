@@ -11,30 +11,30 @@
 #include <avr/delay.h>
 #include <avr/interrupt.h>
 
-unsigned int recieved_data = 0;
-uint16_t US_sens_front_left = 0x0;
-uint16_t US_sens_back_left = 0x0;
-uint16_t US_sens_ahead = 0x0;
-uint16_t US_sens_right = 0x0;
-uint8_t Gyro_sens = 0x0;
-uint16_t Photo_distance = 0x0;
-uint8_t IR_detector = 0x0;
-int dataRecieved = 0;
+volatile unsigned int recieved_data = 0;
+volatile uint16_t US_sens_front_left = 0x0;
+volatile uint16_t US_sens_back_left = 0x0;
+volatile uint16_t US_sens_ahead = 0x0;
+volatile uint16_t US_sens_right = 0x0;
+volatile uint8_t Gyro_sens = 0x0;
+volatile uint16_t Photo_distance = 0x0;
+volatile uint8_t IR_detector = 0x0;
+volatile int dataRecieved = 0;
 
-int wheelRad = 3;
+volatile int wheelRad = 3;
 const int numOfWheelSectors = 4; 
 
-float refDist = 0;
-float traveledDistTot = 0;
+volatile float refDist = 0;
+volatile float traveledDistTot = 0;
 
 const int mapRows = 17;
 const int mapCols = 31;
-char mapArray[17][31];
+volatile char mapArray[17][31];
 
-int roboPos[2];
+volatile int roboPos[2];
 
-signed int rowDir;
-signed int colDir;
+volatile signed int rowDir;
+volatile signed int colDir;
 
 //Interrupt from firefly
 ISR(USART_RXC_vect) {
