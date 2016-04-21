@@ -1,0 +1,25 @@
+#include "PC_Unit.h"
+#include "PortHandling.h"
+#include "KeyReaderForm.h";
+
+using namespace System;
+using namespace System::Windows::Forms;
+
+
+
+[STAThread]
+void Main(array<String^>^ args)
+{
+	Application::EnableVisualStyles();
+	Application::SetCompatibleTextRenderingDefault(false);
+
+	CppWinForm1::PC_Unit form;
+	Application::Run(%form);
+}
+
+System::Void CppWinForm1::PC_Unit::keyboardBut_Click(System::Object ^ sender, System::EventArgs ^ e)
+{
+	KeyReaderForm ^form = gcnew KeyReaderForm;
+	form->ShowDialog();
+	return System::Void();
+}
