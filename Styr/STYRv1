@@ -14,10 +14,11 @@
  //uint8_t current_command = 01010011; //Börjar med S
  unsigned int test = 0;
  
- uint8_t kommData = 0b01010011;
- uint16_t US_sens_front_left = 0x0;
- uint16_t US_sens_back_left = 0x0;
- uint8_t Gyro_sens = 0x0;
+ volatile uint8_t kommData = 0b01010011;
+ volatile uint16_t US_sens_front_left = 0x0;
+ volatile uint16_t US_sens_back_left = 0x0;
+ volatile uint8_t Gyro_sens = 0x0;
+ volatile uint16_t Photo_distance= 0x0;
  uint16_t speed = 0x1FF;
  
   //Avbrottsvektor
@@ -79,7 +80,7 @@
    
   void init_pwm_claw(void)
     {
-	    OCR0 = 0x10;
+	    OCR0 = 0x1A;
 	    TCCR0 = (1<<WGM01)|(1<<WGM00)|(1<<COM01)|(1<<CS01)|(1<<CS00);
 	    DDRB = (1<<PORTB3);
 	    
@@ -153,6 +154,7 @@ uint8_t Recieve8Data(void) {
  	US_sens_front_left = Recieve16Data();
 	US_sens_back_left = Recieve16Data();
 	Gyro_sens = Recieve8Data();
+	Photo_distance = Recieve16Data();
  
  	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
  	
@@ -196,7 +198,7 @@ uint8_t Recieve8Data(void) {
  	OCR1B = speed;
  }
  
- void rotate_90_left(){
+ void rotate_90_left(void){
 	 
 	 //left-wise (anti-clock) rotation increases gyro
 	 PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
@@ -217,7 +219,8 @@ uint8_t Recieve8Data(void) {
 	 
 	 kommData = 'S';
  } 
-void rotate_90_right(){
+ 
+void rotate_90_right(void){
  
  //left-wise (anti-clock) rotation increases gyro
  PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
@@ -239,7 +242,7 @@ void rotate_90_right(){
  kommData = 'S';	
 }
  
-rotate_180(){
+void rotate_180(void){
 	//left-wise (anti-clock) rotation increases gyro
 	PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
 	PORTD |= (1<<PORTD1); // DIR_LEFT framåt
@@ -259,6 +262,7 @@ rotate_180(){
 	 
 	 kommData = 'S';
 }
+
  void turn_right(unsigned int speed)
  {
  	PORTD |= (1<<PORTD0);
@@ -284,7 +288,7 @@ rotate_180(){
  void openClaw(void)
  {
 	 //Min 0x10
-	 OCR0 = 0x10;
+	 OCR0 = 0x1A;
  }
  
  void closeClaw(void)
@@ -292,58 +296,6 @@ rotate_180(){
 	 //Max 0x4A
 	 OCR0 = 0x4A;
  }
- 
- void manual_mode(void){
-	  while (1) {
-		  switch(kommData) {
-			  case 0b01010011:	//Stopp
-			  stop();
-			  break;
-			  case 0b01000110:	//Framåt
-			  forward(0x123,0x123);
-			  break;
-			  case 0b01000010:	//Bakåt
-			  backward(0x123,0x123);
-			  break;
-			  case 0b01001100:	//Vänster
-			  turn_left(0x123);
-			  break;
-			  case 0b01010010:	//Höger
-			  turn_right(0x123);
-			  break;
-			  case 0b01000101:	//Fram höger
-			  forward(0x223,0xff);
-			  break;
-			  case 0b01010001:	//Fram vänster
-			  forward(0xff,0x223);
-			  break;
-			  case 'v':
-			  rotate_90_left();
-			  break;
-			  case 'r':
-			  rotate_90_right();
-			  break;
-			  case 'u':
-			  rotate_180();
-			  break;
-			  case 'l':
-			  lowerClaw();
-			  break;
-			  case 'h':
-			  higherClaw();
-			  break;
-			  case 'o':
-			  stop();
-			  openClaw();
-			  break;
-			  case 'c':
-			  stop();
-			  closeClaw();
-			  default:
-			  stop();
-		  }
-	  }
-  }
   
  void pd_control(void){
 	   
@@ -351,7 +303,7 @@ rotate_180(){
 	   uint16_t sens_front_left;
 	   int k_p = 35;
 	   uint16_t p_term;
-	   uint16_t ref_value = 0x042E;
+	   uint16_t ref_value = 0x0370;
 	   uint16_t error = 0x0;
 	   
 	   uint16_t k_d = 45;
@@ -359,10 +311,14 @@ rotate_180(){
 	   
 	   uint16_t pd_term;
 	   
+	   
+	   PORTD |= (1<<PORTD0); // DIR_RIGHT Direction framåt
+	   PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
 	   OCR1A = speed;
 	   OCR1B = speed;
 	   
 	   while (1){
+		   if(kommData != 'p') return;
 		   //Update sensor values
 		   sens_front_left = US_sens_front_left;
 		   sens_back_left = US_sens_back_left;
@@ -425,6 +381,115 @@ rotate_180(){
 		   
 	   }
    }
+   
+ void RobotDance(void)
+ {
+	 forward(0x1FF,0x1FF);
+	 _delay_ms(500);
+	 stop();
+	 rotate_180();
+	 forward(0x1FF,0x1FF);
+	 _delay_ms(500);
+	 stop();
+	 rotate_180();
+	 higherClaw();
+	 _delay_ms(500);
+	 closeClaw();
+	 _delay_ms(500);
+	 openClaw();
+	 lowerClaw();
+	 _delay_ms(500);
+	 closeClaw();
+	 _delay_ms(500);
+	 openClaw();
+	 _delay_ms(500);
+	 higherClaw();
+	 closeClaw();
+	 rotate_180();
+	 rotate_180();
+	 lowerClaw();
+	 _delay_ms(500);
+	 closeClaw();
+ }
+ 
+ void shortForward(uint16_t i)
+ { 
+	 uint16_t distance = Photo_distance;
+	 forward(speed, speed);
+	
+	 while(Photo_distance - distance < i);
+	 
+	 if (kommData = 's' || kommData = 'k') kommData = 'S';
+ }
+ 
+ void turnLeftCorridor(void) {
+	 shortForward(0x4);
+	 rotate_90_left();
+	 shortForward(0x7);
+ }
+   
+ void manual_mode(void){
+	 while (1) {
+		 switch(kommData) {
+			 case 'S':	//Stopp
+			 stop();
+			 break;
+			 case 'F':	//Framåt
+			 forward(0x2AA,0x2AA);
+			 break;
+			 case 'B':	//Bakåt
+			 backward(0x2AA,0x2AA);
+			 break;
+			 case 'L':	//Vänster
+			 turn_left(0x2AA);
+			 break;
+			 case 'R':	//Höger
+			 turn_right(0x2AA);
+			 break;
+			 case 'E':	//Fram höger
+			 forward(0x2AA,0x1AA);
+			 break;
+			 case 'Q':	//Fram vänster
+			 forward(0x1AA,0x2AA);
+			 break;
+			 case 'p':
+			 pd_control();
+			 break;
+			 case 'v':
+			 rotate_90_left();
+			 break;
+			 case 'r':
+			 rotate_90_right();
+			 break;
+			 case 'u':
+			 rotate_180();
+			 break;
+			 case 'l':
+			 lowerClaw();
+			 break;
+			 case 'h':
+			 higherClaw();
+			 break;
+			 case 'o':
+			 openClaw();
+			 break;
+			 case 'c':
+			 closeClaw();
+			 break;
+			 case 'd':
+			 RobotDance();
+			 break;
+			 case 's':
+			 turnLeftCorridor();
+			 break;
+			 case 'k':
+			 shortForward(0x7);
+			 break;
+			 default:
+			 stop();
+		 }
+	 }
+ }   
  
  int main(void)
  {
@@ -432,6 +497,6 @@ rotate_180(){
  	init_pwm_claw();
  	TWIInit(); //Initierar bussen
  	
-	if (PINB & (1<<PINB0)) manual_mode();
- 	else pd_control();
+	manual_mode();
+
  }
