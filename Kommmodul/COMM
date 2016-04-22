@@ -13,16 +13,18 @@
 
 volatile unsigned int recieved_data = 0;
 volatile uint16_t US_sens_front_left = 0x0;
+volatile uint16_t US_pre_sens_front_left = 0x0;
 volatile uint16_t US_sens_back_left = 0x0;
-volatile uint16_t US_sens_ahead = 0x0;
-volatile uint16_t US_sens_right = 0x0;
+volatile uint16_t US_sens_ahead = 0x10BB;
+volatile uint16_t US_sens_right = 0x42E;
 volatile uint8_t Gyro_sens = 0x0;
 volatile uint16_t Photo_distance = 0x0;
 volatile uint8_t IR_detector = 0x0;
 volatile int dataRecieved = 0;
+int falesafecounter = 0;
 
 volatile int wheelRad = 3;
-const int numOfWheelSectors = 4; 
+const int numOfWheelSectors = 4;
 
 volatile float refDist = 0;
 volatile float traveledDistTot = 0;
@@ -260,6 +262,7 @@ void TWIRecieveFromSens(void) {
 	
 	//Release bus control
 	TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		
 }
 
 //send sensor data to PC
@@ -317,35 +320,6 @@ void goForward(){
 	TWITransmitData('p');
 }
 
-//checks if map needs update
-void check_dist(){
-	float numOfWheelTurns = 0;
-	
-	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
-	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
-	if (traveledDistTot - refDist > 40)
-	{
-		//Update map
-		mapArray[roboPos[1]][roboPos[2]] = 'c';
-		
-		//Update robot position
-		roboPos[1] = roboPos[1] + colDir;
-		roboPos[2] = roboPos[2] + rowDir;
-		
-		refDist = traveledDistTot;
-	}
-}
-
-//checks if in a intersection
-void check_cross(){
-	if ((US_sens_front_left >= 0x085C) | (US_sens_right >= 0x085C))
-	{
-		//Stop and make decision
-		TWITransmitData('s');
-		controlDecision();
-	}
-}
-
 //turns 90 degrees left
 void turnLeft(){
 	//Turn left, 90 degrees
@@ -364,7 +338,7 @@ void turnLeft(){
 	}
 }
 
-//turns 90 degrees right 
+//turns 90 degrees right
 void turnRight(){
 	//Turn right, 90 degrees
 	TWITransmitData('r');
@@ -382,20 +356,8 @@ void turnRight(){
 	}
 }
 
-//go forward, ca 30 cm
-void goShort(){
-	TWITransmitData('s');
-}
-
-//go forward, ca 40 cm
-void goLong(){
-	TWITransmitData('k');
-}
-
 //megasuperduperbig control decision
 void controlDecision(){
-	goShort();
-	
 	//Update map, this is a decision node
 	mapArray[roboPos[1]][roboPos[2]] = 'd';
 	
@@ -403,7 +365,7 @@ void controlDecision(){
 	if (US_sens_front_left > 0x085C)
 	{
 		//Four-way intersection
-		if ((US_sens_right > 0x085C) & (US_sens_ahead > 0x085C))
+		if ((US_sens_right > 0x085C) && (US_sens_ahead > 0x085C))
 		{
 			//Turn left if uncharted
 			//Direction: up or down
@@ -491,15 +453,17 @@ void controlDecision(){
 		}
 		
 		//Three-way intersection as in pic 5
-		else if (US_sens_ahead > 0x085C & US_sens_right <= 0x085C)
+		else if ((US_sens_ahead > 0x085C) && (US_sens_right <= 0x085C))
 		{
 			//Turn left if uncharted
 			if (mapArray[roboPos[1]+1][roboPos[2]] != 'c')
 			{
-				turnLeft();
-				goLong();
+				//Turn Left Corridor
+				TWITransmitData('s');
 				refDist = (float) Photo_distance;
 				goForward();
+				_delay_ms(1000);
+				TWITransmitData('d');
 			}
 			else
 			{
@@ -514,7 +478,7 @@ void controlDecision(){
 			mapArray[roboPos[1]+1][roboPos[2]] == 'o';
 		}
 		//Three-way intersection as in pic 3
-		else if ((US_sens_right > 0x085C) & (US_sens_ahead <= 0x085C))
+		else if ((US_sens_right > 0x085C) && (US_sens_ahead <= 0x085C))
 		{
 			//Turn left if uncharted
 			if (mapArray[roboPos[1]][roboPos[2]-1] != 'c')
@@ -548,7 +512,7 @@ void controlDecision(){
 	else if (US_sens_right > 0x085C)
 	{
 		//Three-way intersection as in pic 4
-		if ((US_sens_ahead > 0x085C) & (US_sens_front_left <= 0x085C))
+		if ((US_sens_ahead > 0x085C) && (US_sens_front_left <= 0x085C))
 		{
 			if (mapArray[roboPos[1]][roboPos[2]+1] != 'c')
 			{
@@ -574,7 +538,7 @@ void controlDecision(){
 		}
 	}
 	//Dead-end as in pic 7
-	else if ((US_sens_ahead < 0x085C) & (US_sens_right < 0x085C) & (US_sens_front_left < 0x085C))
+	else if ((US_sens_ahead < 0x085C) && (US_sens_right < 0x085C) && (US_sens_front_left < 0x085C))
 	{
 		//Turn 180 degrees and go back to decision point
 		TWITransmitData('u');
@@ -588,20 +552,85 @@ void controlDecision(){
 	}
 }
 
+void testControl(void)
+{
+	if (US_sens_front_left > 0x085C) {
+		TWITransmitData('s');
+		refDist = (float) Photo_distance;
+	}
+}
+
+//checks if map needs update
+void check_dist(){
+	float numOfWheelTurns = 0;
+	
+	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
+	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
+	if (traveledDistTot - refDist > 40)
+	{
+		//Update map
+		mapArray[roboPos[1]][roboPos[2]] = 'c';
+		
+		//Update robot position
+		roboPos[1] = roboPos[1] + colDir;
+		roboPos[2] = roboPos[2] + rowDir;
+		
+		refDist = traveledDistTot;
+	}
+}
+
+//checks if in a intersection
+void check_cross(){
+	if (US_sens_front_left > 0x085C) // || (US_sens_right >= 0x085C
+	{
+		TWITransmitData('S');
+		_delay_ms(500);
+		TWITransmitData('b');
+		_delay_ms(1000);
+		if (US_sens_front_left > 0x085C)
+		{
+			testControl();
+		}
+		
+		else 
+		{
+			TWITransmitData('B');
+			_delay_ms(500);
+			goForward();
+		}	
+	}
+}
+
 int main(void)
 {
 
 	TWIInit();
 	init_bluetooth();
 	mapInit();
-	int remotePin = 1;
+	
+	_delay_ms(1000);
+	goForward();
 	
 	while (1)
 	{
-		sendSensorData();
-		_delay_ms(500);
-		
-		check_dist();
-		check_cross();
+		if (PINB & (1<<PINB0)) {
+			if (US_sens_front_left > 0x085C) // || (US_sens_right >= 0x085C
+			{
+				TWITransmitData('b');
+				_delay_ms(1000);
+				
+				if (US_sens_front_left > 0x085C)
+				{
+					testControl();
+				}
+				
+				goForward();
+			}
+		}
+		else 
+		{
+			sendSensorData();
+			_delay_ms(100);
+		}
 	}
 }
