@@ -13,7 +13,6 @@
 
 volatile unsigned int recieved_data = 0;
 volatile uint16_t US_sens_front_left = 0x0;
-volatile uint16_t US_pre_sens_front_left = 0x0;
 volatile uint16_t US_sens_back_left = 0x0;
 volatile uint16_t US_sens_ahead = 0x10BB;
 volatile uint16_t US_sens_right = 0x42E;
@@ -245,8 +244,8 @@ void TWIRecieveFromSens(void) {
 	//Get the values from the bus
 	US_sens_front_left = Recieve16Data();
 	US_sens_back_left = Recieve16Data();
+	US_sens_right = Recieve16Data();
 	//US_sens_ahead = Recieve16Data();
-	//US_sens_right = Recieve16Data();
 	Gyro_sens = Recieve8Data();
 	Photo_distance = Recieve16Data();
 	//IR_detector = Recieve8Data();
