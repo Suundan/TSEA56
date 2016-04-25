@@ -17,6 +17,7 @@
  volatile uint8_t kommData = 0b01010011;
  volatile uint16_t US_sens_front_left = 0x0;
  volatile uint16_t US_sens_back_left = 0x0;
+ volatile uint16_t US_sens_right = 0x0;
  volatile uint8_t Gyro_sens = 0x0;
  volatile uint16_t Photo_distance= 0x0;
  uint16_t speed = 0x1FF;
@@ -153,6 +154,7 @@ uint8_t Recieve8Data(void) {
  
  	US_sens_front_left = Recieve16Data();
 	US_sens_back_left = Recieve16Data();
+	US_sens_right = Recieve16Data();
 	Gyro_sens = Recieve8Data();
 	Photo_distance = Recieve16Data();
  
