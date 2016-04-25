@@ -321,8 +321,6 @@ int main(void)
 			US_right = US_sens_right;
 		}
 		
-		
-		TWITransmitData(US_front_left, US_back_left, Gyro_sens, distance_photo);
 		TWITransmitData(US_front_left, US_back_left, US_right, Gyro_sens, distance_photo);
 		
 	}
