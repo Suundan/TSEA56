@@ -13,7 +13,11 @@
 #include <util/twi.h>
 
 uint16_t US_sens_front_left = 0x0;
+uint16_t US_pre_sens_front_left = 0x0;
 uint16_t US_sens_back_left = 0x0;
+uint16_t US_pre_sens_back_left = 0x0;
+uint16_t US_sens_right = 0x0;
+uint16_t US_pre_sens_right = 0x0;
 uint8_t Gyro_sens = 0x0;
 uint16_t distance_photo = 0x00;
 unsigned int black_white_check= 0;
@@ -146,6 +150,8 @@ void readFromSensFront(void) {
 	//Stops counter
 	TCCR1B = (0<<CS10);
 	
+	US_pre_sens_front_left = US_sens_front_left;
+	
 	//Read counter
 	US_sens_front_left = TCNT1;
 	
@@ -172,8 +178,38 @@ void readFromSensBack(void) {
 	//Stops counter
 	TCCR1B = (0<<CS10);
 	
+	US_pre_sens_back_left = US_sens_back_left;
+	
 	//Read counter
 	US_sens_back_left = TCNT1;
+	
+	//reset counter
+	TCNT1 = 0x0;
+}
+
+void readFromSensRight(void) {
+	
+	// send pulse to US-sensor three, front right
+	PORTB = (1<<PORTB0); // Sätter PB0 till hög under bestämd tid
+	_delay_us(40);
+	PORTB = (0<<PORTB0);// Sätter PA1 till låg och startar mätningen
+	
+	//wait for us-sensor to start measuring
+	while(!(PINB & (1<<PORTB1)));
+
+	//Start counter
+	TCCR1B =(1<<CS10);
+	
+	//wait for final value from us-sensor
+	while(PINB & (1<<PORTB1));
+
+	//Stops counter
+	TCCR1B = (0<<CS10);
+	
+	US_pre_sens_right = US_sens_right;
+	
+	//Read counter
+	US_sens_right = TCNT1;
 	
 	//reset counter
 	TCNT1 = 0x0;
@@ -182,6 +218,7 @@ void readFromSensBack(void) {
 void readFromGyro(void)
 {
 	GyroInit();
+	
 	ADCSRA |= (1<<ADSC);// Start the conversion
 	
 	while( !(ADCSRA & (1<<ADIF)));
@@ -192,8 +229,11 @@ void readFromGyro(void)
 void readFromPhoto(void)
 {
 	PhotoInit();
+	
 	ADCSRA |= (1<<ADSC);// Start the conversion
+	
 	while( !(ADCSRA & (1<<ADIF)));//wait for conversion complete
+	
 	photo_value = ADCH;
 		if(black_white_check ==1){//if black before, check if white now, if true ++distance
 			if(ADCH > 0xC8){
@@ -212,20 +252,6 @@ void readFromPhoto(void)
 				return;
 			}
 		}
-		
-		/*
-		if(ADCH < 0x55){
-			black_white_check = 1;
-		}
-		
-		while(ADCH > 0x82){
-			ADCSRA |= (1<<ADSC);//Check if it is white(distance_photo)
-			while(ADIF == 0);
-		}
-		
-		++distance_photo;
-		return;*/
-
 
 }
 
@@ -233,7 +259,9 @@ int main(void)
 {
 	//Init of sensorreading
     DDRA = (1 << PORTA1)|(1 << PORTA3); //PA1 and PA3 to out, PA0 in
+	DDRB = (1<< PORTB0);
 	TWIInit();
+	
 	//GyroInit();
 	unsigned int loop= 0;
 	
@@ -254,9 +282,48 @@ int main(void)
 		readFromGyro();
 		readFromPhoto();
 		
-		TWITransmitData(US_sens_front_left, US_sens_back_left, Gyro_sens, distance_photo);
+		if (loop)
+		{
+			readFromSensRight();
+		}
 		
-		_delay_ms(5);
+		uint16_t US_back_left = 0x0;
+		uint16_t US_front_left = 0x0;
+		uint16_t US_right = 0x0;
+		
+		//Back left, if difference between new and old is large send out old value again, else send new
+		if (abs(US_pre_sens_back_left-US_sens_back_left) > US_pre_sens_back_left*0.2) 
+		{
+			US_back_left = US_pre_sens_back_left;
+		} 
+		else
+		{
+			US_back_left = US_sens_back_left;
+		}
+		
+		//Front left, if difference between new and old is large send out old value again, lese send new
+		if (abs(US_pre_sens_front_left-US_sens_front_left) > US_pre_sens_front_left*0.2)
+		{
+			US_front_left = US_pre_sens_front_left;
+		}
+		else
+		{
+			US_front_left = US_sens_front_left;
+		}
+		
+		//Front right, if difference between new and old is large send out old value again, lese send new
+		if (abs(US_pre_sens_right-US_sens_right) > US_pre_sens_right*0.2)
+		{
+			US_right = US_pre_sens_right;
+		}
+		else
+		{
+			US_right = US_sens_right;
+		}
+		
+		
+		TWITransmitData(US_front_left, US_back_left, Gyro_sens, distance_photo);
+		TWITransmitData(US_front_left, US_back_left, US_right, Gyro_sens, distance_photo);
 		
 	}
 }
