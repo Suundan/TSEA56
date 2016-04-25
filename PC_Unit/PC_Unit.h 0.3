@@ -80,8 +80,8 @@ namespace CppWinForm1 {
 	private: System::Windows::Forms::TextBox^  textBoxRightUS;
 
 	private: System::Windows::Forms::FlowLayoutPanel^  flowLayoutPanel4;
-	private: System::Windows::Forms::Label^  labelLaser;
-	private: System::Windows::Forms::TextBox^  textBoxLaser;
+	private: System::Windows::Forms::Label^  labelIRFront;
+	private: System::Windows::Forms::TextBox^  textBoxIRFront;
 
 	private: System::Windows::Forms::FlowLayoutPanel^  flowLayoutPanel5;
 	private: System::Windows::Forms::Label^  labelGyro;
@@ -161,8 +161,8 @@ namespace CppWinForm1 {
 			this->labelLeftUSRear = (gcnew System::Windows::Forms::Label());
 			this->textBoxLeftUSRear = (gcnew System::Windows::Forms::TextBox());
 			this->flowLayoutPanel4 = (gcnew System::Windows::Forms::FlowLayoutPanel());
-			this->labelLaser = (gcnew System::Windows::Forms::Label());
-			this->textBoxLaser = (gcnew System::Windows::Forms::TextBox());
+			this->labelIRFront = (gcnew System::Windows::Forms::Label());
+			this->textBoxIRFront = (gcnew System::Windows::Forms::TextBox());
 			this->flowLayoutPanel8 = (gcnew System::Windows::Forms::FlowLayoutPanel());
 			this->labelRightUS = (gcnew System::Windows::Forms::Label());
 			this->textBoxRightUS = (gcnew System::Windows::Forms::TextBox());
@@ -422,34 +422,34 @@ namespace CppWinForm1 {
 			// flowLayoutPanel4
 			// 
 			this->flowLayoutPanel4->BackColor = System::Drawing::Color::CadetBlue;
-			this->flowLayoutPanel4->Controls->Add(this->labelLaser);
-			this->flowLayoutPanel4->Controls->Add(this->textBoxLaser);
+			this->flowLayoutPanel4->Controls->Add(this->labelIRFront);
+			this->flowLayoutPanel4->Controls->Add(this->textBoxIRFront);
 			this->flowLayoutPanel4->Location = System::Drawing::Point(3, 113);
 			this->flowLayoutPanel4->Name = L"flowLayoutPanel4";
 			this->flowLayoutPanel4->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel4->TabIndex = 15;
 			// 
-			// labelLaser
+			// labelIRFront
 			// 
-			this->labelLaser->AutoSize = true;
-			this->labelLaser->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+			this->labelIRFront->AutoSize = true;
+			this->labelIRFront->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
-			this->labelLaser->Location = System::Drawing::Point(3, 0);
-			this->labelLaser->Name = L"labelLaser";
-			this->labelLaser->Size = System::Drawing::Size(67, 25);
-			this->labelLaser->TabIndex = 0;
-			this->labelLaser->Text = L"Laser:";
+			this->labelIRFront->Location = System::Drawing::Point(3, 0);
+			this->labelIRFront->Name = L"labelIRFront";
+			this->labelIRFront->Size = System::Drawing::Size(67, 25);
+			this->labelIRFront->TabIndex = 0;
+			this->labelIRFront->Text = L"Front IR:";
 			// 
-			// textBoxLaser
+			// textBoxIRFront
 			// 
-			this->textBoxLaser->BorderStyle = System::Windows::Forms::BorderStyle::None;
-			this->textBoxLaser->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+			this->textBoxIRFront->BorderStyle = System::Windows::Forms::BorderStyle::None;
+			this->textBoxIRFront->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
-			this->textBoxLaser->Location = System::Drawing::Point(3, 28);
-			this->textBoxLaser->Name = L"textBoxLaser";
-			this->textBoxLaser->ReadOnly = true;
-			this->textBoxLaser->Size = System::Drawing::Size(105, 34);
-			this->textBoxLaser->TabIndex = 1;
+			this->textBoxIRFront->Location = System::Drawing::Point(3, 28);
+			this->textBoxIRFront->Name = L"textBoxIRFront";
+			this->textBoxIRFront->ReadOnly = true;
+			this->textBoxIRFront->Size = System::Drawing::Size(105, 34);
+			this->textBoxIRFront->TabIndex = 1;
 			// 
 			// flowLayoutPanel8
 			// 
@@ -470,7 +470,7 @@ namespace CppWinForm1 {
 			this->labelRightUS->Name = L"labelRightUS";
 			this->labelRightUS->Size = System::Drawing::Size(89, 25);
 			this->labelRightUS->TabIndex = 0;
-			this->labelRightUS->Text = L"Right US";
+			this->labelRightUS->Text = L"Right US:";
 			// 
 			// textBoxRightUS
 			// 
@@ -589,24 +589,24 @@ namespace CppWinForm1 {
 			this->flowLayoutPanel7->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel7->TabIndex = 18;
 			// 
-			// labelIR
+			// labelGoalDetector
 			// 
 			this->labelIR->AutoSize = true;
 			this->labelIR->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
 			this->labelIR->Location = System::Drawing::Point(3, 0);
-			this->labelIR->Name = L"labelIR";
+			this->labelIR->Name = L"labelGoalDetector";
 			this->labelIR->Size = System::Drawing::Size(84, 25);
 			this->labelIR->TabIndex = 0;
-			this->labelIR->Text = L"Infrared:";
+			this->labelIR->Text = L"Goal detector:";
 			// 
-			// textBoxIR
+			// textBoxGoalDetector
 			// 
 			this->textBoxIR->BorderStyle = System::Windows::Forms::BorderStyle::None;
 			this->textBoxIR->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
 			this->textBoxIR->Location = System::Drawing::Point(3, 28);
-			this->textBoxIR->Name = L"textBoxIR";
+			this->textBoxIR->Name = L"textBoxGoalDetector";
 			this->textBoxIR->ReadOnly = true;
 			this->textBoxIR->Size = System::Drawing::Size(105, 34);
 			this->textBoxIR->TabIndex = 1;
@@ -1073,9 +1073,9 @@ namespace CppWinForm1 {
 		writeSensorData(this->textBoxLeftUSRear, Read16SP2());
 		writeSensorData(this->textBoxGyro, serialPort2->ReadByte());
 		writeSensorData(this->textBoxDistance, Read16SP2());
-		//writeSensorData(this->textBoxLaser, Read16SP2());
+		//writeSensorData(this->textBoxIRFront, Read16SP2());
 		//writeSensorData(this->textBoxRightUS, Read16SP2());
-		//writeSensorData(this->textBoxIR, serialPort2->ReadByte());
+		//writeSensorData(this->textBoxGoalDetector, serialPort2->ReadByte());
 	}
 	private: System::Void serialPort2_DataReceived(System::Object^  sender, System::IO::Ports::SerialDataReceivedEventArgs^  e) {
 		char header = serialPort2->ReadByte();
