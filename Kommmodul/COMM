@@ -14,8 +14,8 @@
 volatile unsigned int recieved_data = 0;
 volatile uint16_t US_sens_front_left = 0x0;
 volatile uint16_t US_sens_back_left = 0x0;
-volatile uint16_t US_sens_ahead = 0x10BB;
-volatile uint16_t US_sens_right = 0x42E;
+volatile uint16_t US_sens_ahead = 0x0;
+volatile uint16_t US_sens_right = 0x0;
 volatile uint8_t Gyro_sens = 0x0;
 volatile uint16_t Photo_distance = 0x0;
 volatile uint8_t IR_detector = 0x0;
@@ -248,7 +248,7 @@ void TWIRecieveFromSens(void) {
 	//US_sens_ahead = Recieve16Data();
 	Gyro_sens = Recieve8Data();
 	Photo_distance = Recieve16Data();
-	//IR_detector = Recieve8Data();
+	IR_detector = Recieve8Data();
 	
 	//Ready to recieve stop condition
 	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
@@ -273,18 +273,19 @@ void sendSensorData(void) {
 	bluetooth_transmit(US_sens_back_left >> 8);
 	bluetooth_transmit(US_sens_back_left & 0xFF);
 	
+	bluetooth_transmit(US_sens_right >> 8);
+	bluetooth_transmit(US_sens_right & 0xFF);
+	
 	bluetooth_transmit(Gyro_sens);
 	
 	//bluetooth_transmit(US_sens_ahead >> 8);
 	//bluetooth_transmit(US_sens_ahead & 0xFF);
 	//
-	//bluetooth_transmit(US_sens_right >> 8);
-	//bluetooth_transmit(US_sens_right & 0xFF);
-	
+
 	bluetooth_transmit(Photo_distance >> 8);
 	bluetooth_transmit(Photo_distance & 0xFF);
 	
-	//bluetooth_transmit(IR_detector);
+	bluetooth_transmit(IR_detector);
 }
 
 //send map to PC
@@ -607,29 +608,32 @@ int main(void)
 	init_bluetooth();
 	mapInit();
 	
-	_delay_ms(1000);
-	goForward();
+	unsigned int pin = 2;
 	
 	while (1)
 	{
-		if (PINB & (1<<PINB0)) {
-			if (US_sens_front_left > 0x085C) // || (US_sens_right >= 0x085C
+		//check if autonomous mode
+		if (!(PINB & (1<<PINB0))) {
+			if (pin = 2 || pin = 1)
 			{
-				TWITransmitData('b');
-				_delay_ms(1000);
-				
-				if (US_sens_front_left > 0x085C)
-				{
-					testControl();
-				}
-				
-				goForward();
+				//Transmitt changed state to computer
+				bluetooth_transmit('n');
+				pin = 0;
 			}
+			
+			//Do autonomous mode things
 		}
 		else 
 		{
+			if (pin = 2 || pin = 0)s
+			{
+				//Transmitt changed state to computer
+				bluetooth_transmit('e');
+				pin = 1;
+			}
 			sendSensorData();
 			_delay_ms(100);
 		}
-	}
+		
+	}*/
 }
