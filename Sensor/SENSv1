@@ -22,7 +22,7 @@ uint8_t Gyro_sens = 0x0;
 uint16_t distance_photo = 0x00;
 unsigned int black_white_check= 0;
 uint16_t photo_value = 0x0;
-
+uint8_t ir_detected = 0x00;
 //Initierar bussen
 void TWIInit(void) {
 	
@@ -67,7 +67,7 @@ void TWIStop(void) {
 }
 
 //Skickar adress + data
-void TWITransmitData(uint16_t data1, uint16_t data2, uint8_t data3, uint16_t data4) {
+void TWITransmitData(uint16_t data1, uint16_t data2, uint16_t data3, uint8_t data4, uint16_t data5, uint8_t data6) {
 	
 	TWIStart();
 
@@ -104,15 +104,25 @@ void TWITransmitData(uint16_t data1, uint16_t data2, uint8_t data3, uint16_t dat
 	newData = data2 & 0xFF;
 	TWISend(newData);
 	
-	TWISend(data3);
-	
-	//Send MSB data4
-	newData = data4 >> 8;
+	//Send MSB data3
+	newData = data3 >> 8;
 	TWISend(newData);
 	
-	//Send LSB data4
-	newData = data4 & 0xFF;
+	//Send LSB data3
+	newData = data3 & 0xFF;
 	TWISend(newData);
+	
+	TWISend(data4);
+	
+	//Send MSB data5
+	newData = data5 >> 8;
+	TWISend(newData);
+	
+	//Send LSB data5
+	newData = data5 & 0xFF;
+	TWISend(newData);
+	
+	TWISend(data6);
 	
 	TWIStop();
 }
@@ -255,6 +265,83 @@ void readFromPhoto(void)
 
 }
 
+uint16_t checkIRValue(void)
+{	
+	TCCR1B =(1<<CS10);
+		
+	while(!(PINB & (1<<PINB2)));
+		
+	TCCR1B = (0<<CS10);
+		
+	uint16_t count = TCNT1;
+	
+	TCNT1 = 0x0;
+	
+	return count;
+}
+
+int checkIRPuls(void)
+{
+	//wait for a zero
+	while(PINB & (1<<PINB2));
+	
+	//check again
+	uint16_t count = checkIRValue();
+	
+	if (abs(count-2000) < 600)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+	
+}
+
+void read_IR(void){
+	
+	uint16_t count = checkIRValue();
+	
+	if (count > 3000)
+	{
+		if(!checkIRPuls())
+		{
+			ir_detected = 0x55;
+			return;
+		}
+		if(!checkIRPuls())
+		{
+			ir_detected = 0x55;
+			return;
+		}
+		if(!checkIRPuls())
+		{
+			ir_detected = 0x55;
+			return;
+		}
+		
+		//OK VALUE, TARGET DETECTED
+		ir_detected = 0xFF;
+		return;
+	}
+	else
+	{
+		TCCR1B =(1<<CS10);
+		while (PINB & (1<<PINB2))
+		{
+			if(TCNT1 > 20000)
+			{
+				TCCR1B = (0<<CS10);
+				TCNT1 = 0x0;
+				return;
+			}
+		}
+		read_IR();
+		return;
+	}	
+}
+
 int main(void)
 {
 	//Init of sensorreading
@@ -264,9 +351,21 @@ int main(void)
 	
 	//GyroInit();
 	unsigned int loop= 0;
-	
+	int per_fecht = 0;
     while (1) 
     {
+		per_fecht++;
+		if (per_fecht > 50)
+		{
+			ir_detected = 0x0;
+			per_fecht = 0;
+		}
+		
+		if(!(PINB & (1<<PINB2)))
+		{
+			read_IR();	
+		}
+		
 		if(!loop)
 		{
 			//read front left
@@ -279,18 +378,20 @@ int main(void)
 			readFromSensBack();
 			loop = 0;
 		}
+		
 		readFromGyro();
+		
 		readFromPhoto();
 		
 		if (loop)
 		{
 			readFromSensRight();
 		}
-		
+
 		uint16_t US_back_left = 0x0;
 		uint16_t US_front_left = 0x0;
 		uint16_t US_right = 0x0;
-		
+
 		//Back left, if difference between new and old is large send out old value again, else send new
 		if (abs(US_pre_sens_back_left-US_sens_back_left) > US_pre_sens_back_left*0.2) 
 		{
@@ -321,7 +422,7 @@ int main(void)
 			US_right = US_sens_right;
 		}
 		
-		TWITransmitData(US_front_left, US_back_left, US_right, Gyro_sens, distance_photo);
+		TWITransmitData(US_sens_front_left, US_sens_back_left, US_sens_right, Gyro_sens, distance_photo, ir_detected);
 		
 	}
 }
