@@ -142,6 +142,9 @@ void TWIStop(void) {
 //Send 8-bit data to bus
 void TWITransmitData(uint8_t data) {
 	
+	//Disable interrupts while sending data
+	cli();
+	
 	//Send start condition
 	TWIStart();
 	
@@ -185,6 +188,9 @@ void TWITransmitData(uint8_t data) {
 	
 	//Send stop condition
 	TWIStop();
+	
+	//Enable interrupts again
+	sei();
 }
 
 //Send the data
