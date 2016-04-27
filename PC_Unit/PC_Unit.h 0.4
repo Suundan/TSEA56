@@ -123,6 +123,7 @@ namespace CppWinForm1 {
 	private: System::Windows::Forms::TextBox^  textBox1;
 	private: System::Windows::Forms::CheckedListBox^  modeCheckedListBox;
 	private: System::Windows::Forms::PictureBox^  pictureBox1;
+	private: System::Windows::Forms::Panel^  panelSensRecieved;
 
 
 
@@ -155,6 +156,7 @@ namespace CppWinForm1 {
 			this->keyboardBut = (gcnew System::Windows::Forms::Button());
 			this->flowLayoutPanel1 = (gcnew System::Windows::Forms::FlowLayoutPanel());
 			this->labelSensorReadings = (gcnew System::Windows::Forms::Label());
+			this->panelSensRecieved = (gcnew System::Windows::Forms::Panel());
 			this->flowLayoutPanel2 = (gcnew System::Windows::Forms::FlowLayoutPanel());
 			this->labelLeftUSFront = (gcnew System::Windows::Forms::Label());
 			this->textBoxLeftUSFront = (gcnew System::Windows::Forms::TextBox());
@@ -332,6 +334,7 @@ namespace CppWinForm1 {
 			// 
 			this->flowLayoutPanel1->BackColor = System::Drawing::Color::LightBlue;
 			this->flowLayoutPanel1->Controls->Add(this->labelSensorReadings);
+			this->flowLayoutPanel1->Controls->Add(this->panelSensRecieved);
 			this->flowLayoutPanel1->Controls->Add(this->flowLayoutPanel2);
 			this->flowLayoutPanel1->Controls->Add(this->flowLayoutPanel3);
 			this->flowLayoutPanel1->Controls->Add(this->flowLayoutPanel4);
@@ -356,12 +359,21 @@ namespace CppWinForm1 {
 			this->labelSensorReadings->TabIndex = 13;
 			this->labelSensorReadings->Text = L"Sensor Readings";
 			// 
+			// panelSensRecieved
+			// 
+			this->panelSensRecieved->BackColor = System::Drawing::Color::Gainsboro;
+			this->panelSensRecieved->BorderStyle = System::Windows::Forms::BorderStyle::FixedSingle;
+			this->panelSensRecieved->Location = System::Drawing::Point(3, 35);
+			this->panelSensRecieved->Name = L"panelSensRecieved";
+			this->panelSensRecieved->Size = System::Drawing::Size(20, 20);
+			this->panelSensRecieved->TabIndex = 21;
+			// 
 			// flowLayoutPanel2
 			// 
 			this->flowLayoutPanel2->BackColor = System::Drawing::Color::CadetBlue;
 			this->flowLayoutPanel2->Controls->Add(this->labelLeftUSFront);
 			this->flowLayoutPanel2->Controls->Add(this->textBoxLeftUSFront);
-			this->flowLayoutPanel2->Location = System::Drawing::Point(3, 35);
+			this->flowLayoutPanel2->Location = System::Drawing::Point(29, 35);
 			this->flowLayoutPanel2->Name = L"flowLayoutPanel2";
 			this->flowLayoutPanel2->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel2->TabIndex = 13;
@@ -393,7 +405,7 @@ namespace CppWinForm1 {
 			this->flowLayoutPanel3->BackColor = System::Drawing::Color::CadetBlue;
 			this->flowLayoutPanel3->Controls->Add(this->labelLeftUSRear);
 			this->flowLayoutPanel3->Controls->Add(this->textBoxLeftUSRear);
-			this->flowLayoutPanel3->Location = System::Drawing::Point(124, 35);
+			this->flowLayoutPanel3->Location = System::Drawing::Point(3, 113);
 			this->flowLayoutPanel3->Name = L"flowLayoutPanel3";
 			this->flowLayoutPanel3->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel3->TabIndex = 14;
@@ -425,7 +437,7 @@ namespace CppWinForm1 {
 			this->flowLayoutPanel4->BackColor = System::Drawing::Color::CadetBlue;
 			this->flowLayoutPanel4->Controls->Add(this->labelIRFront);
 			this->flowLayoutPanel4->Controls->Add(this->textBoxIRFront);
-			this->flowLayoutPanel4->Location = System::Drawing::Point(3, 113);
+			this->flowLayoutPanel4->Location = System::Drawing::Point(124, 113);
 			this->flowLayoutPanel4->Name = L"flowLayoutPanel4";
 			this->flowLayoutPanel4->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel4->TabIndex = 15;
@@ -457,7 +469,7 @@ namespace CppWinForm1 {
 			this->flowLayoutPanel8->BackColor = System::Drawing::Color::CadetBlue;
 			this->flowLayoutPanel8->Controls->Add(this->labelRightUS);
 			this->flowLayoutPanel8->Controls->Add(this->textBoxRightUS);
-			this->flowLayoutPanel8->Location = System::Drawing::Point(124, 113);
+			this->flowLayoutPanel8->Location = System::Drawing::Point(3, 191);
 			this->flowLayoutPanel8->Name = L"flowLayoutPanel8";
 			this->flowLayoutPanel8->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel8->TabIndex = 19;
@@ -489,7 +501,7 @@ namespace CppWinForm1 {
 			this->flowLayoutPanel6->BackColor = System::Drawing::Color::CadetBlue;
 			this->flowLayoutPanel6->Controls->Add(this->labelDistance);
 			this->flowLayoutPanel6->Controls->Add(this->textBoxDistance);
-			this->flowLayoutPanel6->Location = System::Drawing::Point(3, 191);
+			this->flowLayoutPanel6->Location = System::Drawing::Point(124, 191);
 			this->flowLayoutPanel6->Name = L"flowLayoutPanel6";
 			this->flowLayoutPanel6->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel6->TabIndex = 17;
@@ -521,7 +533,7 @@ namespace CppWinForm1 {
 			this->flowLayoutPanel9->BackColor = System::Drawing::Color::CadetBlue;
 			this->flowLayoutPanel9->Controls->Add(this->labelPhotoDistance);
 			this->flowLayoutPanel9->Controls->Add(this->textBoxPhotoDistance);
-			this->flowLayoutPanel9->Location = System::Drawing::Point(124, 191);
+			this->flowLayoutPanel9->Location = System::Drawing::Point(3, 269);
 			this->flowLayoutPanel9->Name = L"flowLayoutPanel9";
 			this->flowLayoutPanel9->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel9->TabIndex = 20;
@@ -553,7 +565,7 @@ namespace CppWinForm1 {
 			this->flowLayoutPanel5->BackColor = System::Drawing::Color::CadetBlue;
 			this->flowLayoutPanel5->Controls->Add(this->labelGyro);
 			this->flowLayoutPanel5->Controls->Add(this->textBoxGyro);
-			this->flowLayoutPanel5->Location = System::Drawing::Point(3, 269);
+			this->flowLayoutPanel5->Location = System::Drawing::Point(124, 269);
 			this->flowLayoutPanel5->Name = L"flowLayoutPanel5";
 			this->flowLayoutPanel5->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel5->TabIndex = 16;
@@ -585,7 +597,7 @@ namespace CppWinForm1 {
 			this->flowLayoutPanel7->BackColor = System::Drawing::Color::CadetBlue;
 			this->flowLayoutPanel7->Controls->Add(this->labelIR);
 			this->flowLayoutPanel7->Controls->Add(this->textBoxGoalDetector);
-			this->flowLayoutPanel7->Location = System::Drawing::Point(124, 269);
+			this->flowLayoutPanel7->Location = System::Drawing::Point(3, 347);
 			this->flowLayoutPanel7->Name = L"flowLayoutPanel7";
 			this->flowLayoutPanel7->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel7->TabIndex = 18;
@@ -604,8 +616,8 @@ namespace CppWinForm1 {
 			// textBoxGoalDetector
 			// 
 			this->textBoxGoalDetector->BorderStyle = System::Windows::Forms::BorderStyle::None;
-			this->textBoxGoalDetector->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(0)));
+			this->textBoxGoalDetector->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular,
+				System::Drawing::GraphicsUnit::Point, static_cast<System::Byte>(0)));
 			this->textBoxGoalDetector->Location = System::Drawing::Point(3, 53);
 			this->textBoxGoalDetector->Name = L"textBoxGoalDetector";
 			this->textBoxGoalDetector->ReadOnly = true;
@@ -686,7 +698,7 @@ namespace CppWinForm1 {
 			this->labelCOMComboBox->Location = System::Drawing::Point(907, 363);
 			this->labelCOMComboBox->Name = L"labelCOMComboBox";
 			this->labelCOMComboBox->RightToLeft = System::Windows::Forms::RightToLeft::No;
-			this->labelCOMComboBox->Size = System::Drawing::Size(156, 20);
+			this->labelCOMComboBox->Size = System::Drawing::Size(150, 20);
 			this->labelCOMComboBox->TabIndex = 19;
 			this->labelCOMComboBox->Text = L"Availible COM ports:";
 			// 
@@ -694,7 +706,7 @@ namespace CppWinForm1 {
 			// 
 			this->contextMenuStrip1->ImageScalingSize = System::Drawing::Size(24, 24);
 			this->contextMenuStrip1->Name = L"contextMenuStrip1";
-			this->contextMenuStrip1->Size = System::Drawing::Size(61, 4);
+			this->contextMenuStrip1->Size = System::Drawing::Size(74, 4);
 			// 
 			// textBox1
 			// 
@@ -789,7 +801,6 @@ namespace CppWinForm1 {
 			this->flowLayoutPanel5->PerformLayout();
 			this->flowLayoutPanel7->ResumeLayout(false);
 			this->flowLayoutPanel7->PerformLayout();
-			this->KeyDown += gcnew System::Windows::Forms::KeyEventHandler(this, &PC_Unit::PC_Unit_KeyDown);
 			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pictureBox1))->EndInit();
 			this->ResumeLayout(false);
 			this->PerformLayout();
@@ -1029,7 +1040,11 @@ namespace CppWinForm1 {
 			}
 			catch (System::IO::IOException^)
 			{
-				writeToUser("Failed to open COM ports, try again.");
+				writeToUser("Opening COM ports failed, try again.");
+			}
+			catch (System::IndexOutOfRangeException^)
+			{
+				writeToUser("Opening COM ports failed. It is likely that the Bluetooth module on your PC is disabled.");
 			}
 		}
 		else
@@ -1079,11 +1094,7 @@ namespace CppWinForm1 {
 			for (int j = 0; j < mapCols; j++)
 			{
 				temp = serialPort2->ReadByte();
-				if (temp == this->pc_map[j + i * mapCols])
-				{
-					// Do nothing		
-				}
-				else
+				if (temp != this->pc_map[j + i * mapCols])
 				{
 					this->pc_map[j + i * mapCols] = temp;
 					paintMapRect(temp, i, j);
@@ -1091,6 +1102,7 @@ namespace CppWinForm1 {
 			}
 		}
 	}
+			 // Reads two bytes received in COM port and returns them as an int
 	private: int Read16SP2()
 	{
 		int dataread = serialPort2->ReadByte();		// Read higher byte of uint16
@@ -1100,17 +1112,17 @@ namespace CppWinForm1 {
 		return dataread;
 
 	}
+			 // Reads the sensor data receieved in the order it is sent
 	private: void ReadSensor()
 	{
-		writeRecieved("Sensor data recieved");
-		//receive order: front left us, back left us, aheadpointing us, right, distance photo, gyro, ir
+		//receive order: front left us, back left us, right,  gyro, distance photo, goaldetect ir, aheadpointing ir, 
 		writeSensorData(this->textBoxLeftUSFront, Read16SP2());
 		writeSensorData(this->textBoxLeftUSRear, Read16SP2());
 		writeSensorData(this->textBoxRightUS, Read16SP2());
 		writeSensorData(this->textBoxGyro, serialPort2->ReadByte());
 		writeSensorData(this->textBoxDistance, Read16SP2());
-		//writeSensorData(this->textBoxIRFront, Read16SP2());
 		writeSensorData(this->textBoxGoalDetector, serialPort2->ReadByte());
+		//writeSensorData(this->textBoxIRFront, serialPort2->ReadByte());
 		readHeader = true;
 	}
 	private: System::Void serialPort2_DataReceived(System::Object^  sender, System::IO::Ports::SerialDataReceivedEventArgs^  e) {
@@ -1133,8 +1145,11 @@ namespace CppWinForm1 {
 					setModeCheckedListBox(this->modeCheckedListBox, 'n');
 					break;
 				case 's':
+					panelSensRecieved->BackColor = Color::CornflowerBlue;
 					readHeader = false;
 					ReadSensor();
+					Sleep(10);
+					panelSensRecieved->BackColor = Color::Gainsboro;
 
 					//sensor_data
 					break;
@@ -1184,17 +1199,6 @@ namespace CppWinForm1 {
 		this->AcceptButton = this->sendButton;
 		this->commandBox->Text = "";
 	}
-			 System::Void CppWinForm1::PC_Unit::PC_Unit_KeyDown(System::Object^  sender, System::Windows::Forms::KeyEventArgs^  e)
-			 {
-				 switch (e->KeyCode) {
-				 case System::Windows::Forms::Keys::Escape:
-					 this->Close();
-					 break;
-				 case System::Windows::Forms::Keys::A:
-					 writeToUser("AAAA");
-					 break;
-				 }
-			 }
 	};
 }
 #endif // !PC_UNIT_H
