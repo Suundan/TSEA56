@@ -18,8 +18,10 @@
  volatile uint16_t US_sens_front_left = 0x0;
  volatile uint16_t US_sens_back_left = 0x0;
  volatile uint16_t US_sens_right = 0x0;
+ volatile uint8_t IR_sens_front = 0x0;
  volatile uint8_t Gyro_sens = 0x0;
  volatile uint16_t Photo_distance= 0x0;
+ volatile uint16_t ir_detected = 0x0;
  uint16_t speed = 0x1FF;
  
   //Avbrottsvektor
@@ -155,9 +157,11 @@ uint8_t Recieve8Data(void) {
  	US_sens_front_left = Recieve16Data();
 	US_sens_back_left = Recieve16Data();
 	US_sens_right = Recieve16Data();
+	IR_sens_front = Recieve8Data();
 	Gyro_sens = Recieve8Data();
 	Photo_distance = Recieve16Data();
- 
+	ir_detected = Recieve8Data();
+	 
  	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
  	
  	while(!(TWCR & (1<<TWINT))); //Väntar på stoppbit
@@ -232,7 +236,7 @@ void rotate_90_right(void){
  
  uint16_t sum_velocity = 0x0;
  
- while(sum_velocity < 0x108F)
+ while(sum_velocity < 0xF00)
  {
 	 signed int temp;
 	 if (Gyro_sens < 0xAC) temp = 0xAC - Gyro_sens;
@@ -253,7 +257,7 @@ void rotate_180(void){
 	 
 	uint16_t sum_velocity = 0x0;
 	 
-	while(sum_velocity < 0x2285)
+	while(sum_velocity < 0x2000)
 	 {
 		 signed int temp;
 		 if (Gyro_sens < 0xAC) temp = 0xAC - Gyro_sens;
