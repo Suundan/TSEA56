@@ -18,6 +18,8 @@ uint16_t US_sens_back_left = 0x0;
 uint16_t US_pre_sens_back_left = 0x0;
 uint16_t US_sens_right = 0x0;
 uint16_t US_pre_sens_right = 0x0;
+uint8_t IR_sens_front = 0x0;
+uint8_t IR_pre_sens_front = 0x0;
 uint8_t Gyro_sens = 0x0;
 uint16_t distance_photo = 0x00;
 unsigned int black_white_check= 0;
@@ -49,6 +51,12 @@ void GyroInit(void) {
 	ADCSRA = 0x83;		//Sets up the ad-converter to enable and prescale with 8
 	
 }
+
+void IRInit(void) {
+	ADMUX = 0x66;		//Leftshift the output from the ad-converter (reads from ADCH) and sets A6 as input
+	ADCSRA = 0x83;		//Sets up the ad-converter to enable and prescale with 8
+	
+}
 void PhotoInit(void){
 		ADMUX = 0x67;		//Leftshift the output from the ad-converter (reads from ADCH) and sets A7 as input
 		ADCSRA = 0x83;		//Sets up the ad-converter to enable and prescale with 8
@@ -67,7 +75,7 @@ void TWIStop(void) {
 }
 
 //Skickar adress + data
-void TWITransmitData(uint16_t data1, uint16_t data2, uint16_t data3, uint8_t data4, uint16_t data5, uint8_t data6) {
+void TWITransmitData(uint16_t data1, uint16_t data2, uint16_t data3, uint8_t data4, uint8_t data5, uint16_t data6, uint8_t data7) {
 	
 	TWIStart();
 
@@ -114,15 +122,17 @@ void TWITransmitData(uint16_t data1, uint16_t data2, uint16_t data3, uint8_t dat
 	
 	TWISend(data4);
 	
+	TWISend(data5);
+	
 	//Send MSB data5
-	newData = data5 >> 8;
+	newData = data6 >> 8;
 	TWISend(newData);
 	
 	//Send LSB data5
-	newData = data5 & 0xFF;
+	newData = data6 & 0xFF;
 	TWISend(newData);
 	
-	TWISend(data6);
+	TWISend(data7);
 	
 	TWIStop();
 }
@@ -234,6 +244,20 @@ void readFromGyro(void)
 	while( !(ADCSRA & (1<<ADIF)));
 	
 	Gyro_sens = ADCH;
+	
+}
+
+void readFromIRDistance(void)
+{
+	IRInit();
+	
+	ADCSRA |= (1<<ADSC);// Start the conversion
+	
+	while( !(ADCSRA & (1<<ADIF)));
+	
+	IR_pre_sens_front = IR_sens_front;
+	
+	IR_sens_front = ADCH;
 	
 }
 void readFromPhoto(void)
@@ -354,6 +378,7 @@ int main(void)
 	int per_fecht = 0;
     while (1) 
     {
+		
 		per_fecht++;
 		if (per_fecht > 50)
 		{
@@ -387,10 +412,15 @@ int main(void)
 		{
 			readFromSensRight();
 		}
+		else
+		{
+			readFromIRDistance();
+		}
 
 		uint16_t US_back_left = 0x0;
 		uint16_t US_front_left = 0x0;
 		uint16_t US_right = 0x0;
+		uint8_t IR_front = 0x0;
 
 		//Back left, if difference between new and old is large send out old value again, else send new
 		if (abs(US_pre_sens_back_left-US_sens_back_left) > US_pre_sens_back_left*0.2) 
@@ -422,7 +452,17 @@ int main(void)
 			US_right = US_sens_right;
 		}
 		
-		TWITransmitData(US_sens_front_left, US_sens_back_left, US_sens_right, Gyro_sens, distance_photo, ir_detected);
+		//Front, if difference between new and old is large send out old value again, else send new
+		if (abs(IR_pre_sens_front - IR_sens_front) > IR_pre_sens_front*0.2)
+		{
+			IR_front = IR_pre_sens_front;
+		}
+		else
+		{
+			IR_front = IR_sens_front;
+		}
+		
+		TWITransmitData(US_front_left, US_back_left, US_right, IR_front, Gyro_sens, distance_photo, ir_detected);
 		
 	}
 }
