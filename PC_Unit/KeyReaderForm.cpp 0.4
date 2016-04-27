@@ -1,0 +1,229 @@
+#include "KeyReaderForm.h"
+#include "PC_Unit.h"
+#include <Windows.h>
+
+bool steerCommand = false;
+System::Windows::Forms::Keys lastPressedKey = System::Windows::Forms::Keys::BrowserBack;
+
+System::Void CppWinForm1::KeyReaderForm::KeyReaderForm_KeyUp(System::Object^  sender, System::Windows::Forms::KeyEventArgs^  e) {
+	if (steerCommand)
+	{
+	CppWinForm1::PC_Unit::send("S");
+	CppWinForm1::PC_Unit::writeToUser("\"S\" sent");
+	steerCommand = false;
+	lastPressedKey = System::Windows::Forms::Keys::BrowserBack;
+	}
+}
+
+//System::Void CppWinForm1::KeyReaderForm::KeyReaderForm_KeyPress(System::Object ^ sender, System::Windows::Forms::KeyPressEventArgs ^ e)
+//{
+//	//CppWinForm1::PC_Unit::writeToUser("INSIDE KEYDOWN");
+//	// key 'Q' is for forward left
+//	// keys 'W' and Up translate to 'F' as in "forward"
+//	// key 'E' is for forward right
+//	// keys 'A' and  Left translate to 'L' as in "left"
+//	// keys 'S' and Down translate to 'B' as in "backward"
+//	// keys 'D' and Right translate to 'R' as in "right"
+//	// key 'C' translates to 'c' as in "close"
+//	// key 'O' translates to 'o' as in "open"
+//	// key 'H' translates to 'h' as in "higher"
+//	// key 'L' translates to 'l' as in "lower"
+//	// key 'Enter' translates to 'd' as in "dance"
+//	// Key Escape closes window
+//	// key Space translates to "S" as in "stop"
+//	switch (e->KeyChar)
+//	{
+//	case 'q':
+//		CppWinForm1::PC_Unit::send("Q");
+//		CppWinForm1::PC_Unit::writeToUser("\"Q\" sent");
+//		steerCommand = true;
+//		break;
+//	case 'w':
+//		CppWinForm1::PC_Unit::send("F");
+//		CppWinForm1::PC_Unit::writeToUser("\"F\" sent");
+//		steerCommand = true;
+//		break;
+//	case System::Windows::Forms::Keys::Up:
+//		CppWinForm1::PC_Unit::send("F");
+//		CppWinForm1::PC_Unit::writeToUser("\"F\" sent");
+//		steerCommand = true;
+//		break;
+//	case 'e':
+//		CppWinForm1::PC_Unit::send("E");
+//		CppWinForm1::PC_Unit::writeToUser("\"E\" sent");
+//		steerCommand = true;
+//		break;
+//	case 'a':
+//		CppWinForm1::PC_Unit::send("L");
+//		CppWinForm1::PC_Unit::writeToUser("\"L\" sent");
+//		steerCommand = true;
+//		break;
+//	case System::Windows::Forms::Keys::Left:
+//		CppWinForm1::PC_Unit::send("L");
+//		CppWinForm1::PC_Unit::writeToUser("\"L\" sent");
+//		steerCommand = true;
+//		break;
+//	case 's':
+//		CppWinForm1::PC_Unit::send("B");
+//		CppWinForm1::PC_Unit::writeToUser("\"B\" sent");
+//		steerCommand = true;
+//		break;
+//	case System::Windows::Forms::Keys::Down:
+//		CppWinForm1::PC_Unit::send("B");
+//		CppWinForm1::PC_Unit::writeToUser("\"B\" sent");
+//		steerCommand = true;
+//		break;
+//	case 'd':
+//		CppWinForm1::PC_Unit::send("R");
+//		CppWinForm1::PC_Unit::writeToUser("\"R\" sent");
+//		steerCommand = true;
+//		break;
+//	case System::Windows::Forms::Keys::Right:
+//		CppWinForm1::PC_Unit::send("R");
+//		CppWinForm1::PC_Unit::writeToUser("\"R\" sent");
+//		steerCommand = true;
+//		break;
+//	case 'c':
+//		CppWinForm1::PC_Unit::send("c");
+//		CppWinForm1::PC_Unit::writeToUser("\"c\" sent");
+//		break;
+//	case 'o':
+//		CppWinForm1::PC_Unit::send("o");
+//		CppWinForm1::PC_Unit::writeToUser("\"o\" sent");
+//		break;
+//	case 'h':
+//		CppWinForm1::PC_Unit::send("h");
+//		CppWinForm1::PC_Unit::writeToUser("\"h\" sent");
+//		break;
+//	case 'l':
+//		CppWinForm1::PC_Unit::send("l");
+//		CppWinForm1::PC_Unit::writeToUser("\"l\" sent");
+//		break;
+//	case System::Windows::Forms::Keys::Enter:
+//		CppWinForm1::PC_Unit::send("d");
+//		CppWinForm1::PC_Unit::writeToUser("\"d\" sent");
+//		break;
+//	case System::Windows::Forms::Keys::Escape:
+//		this->Close();
+//	case System::Windows::Forms::Keys::Space:
+//		CppWinForm1::PC_Unit::send("S");
+//		CppWinForm1::PC_Unit::writeToUser("\"S\" sent");
+//	}
+//	return System::Void();
+//}
+
+System::Void CppWinForm1::KeyReaderForm::KeyReaderForm_KeyDown(System::Object ^ sender, System::Windows::Forms::KeyEventArgs ^ e)
+{
+	if (e->KeyCode != lastPressedKey)
+	{
+		//CppWinForm1::PC_Unit::writeToUser("INSIDE KEYDOWN");
+		// key 'Q' is for forward left
+		// keys 'W' and Up translate to 'F' as in "forward"
+		// key 'E' is for forward right
+		// keys 'A' and  Left translate to 'L' as in "left"
+		// keys 'S' and Down translate to 'B' as in "backward"
+		// keys 'D' and Right translate to 'R' as in "right"
+		// key 'C' translates to 'c' as in "close"
+		// key 'O' translates to 'o' as in "open"
+		// key 'H' translates to 'h' as in "higher"
+		// key 'L' translates to 'l' as in "lower"
+		// key 'Enter' translates to 'd' as in "dance"
+		// Key Escape closes window
+		// key Space translates to "S" as in "stop"
+		switch (e->KeyCode)
+		{
+		case System::Windows::Forms::Keys::Q:
+			CppWinForm1::PC_Unit::send("Q");
+			CppWinForm1::PC_Unit::writeToUser("\"Q\" sent");
+			steerCommand = true;
+			lastPressedKey = System::Windows::Forms::Keys::Q;
+			break;
+		case System::Windows::Forms::Keys::W:
+			CppWinForm1::PC_Unit::send("F");
+			CppWinForm1::PC_Unit::writeToUser("\"F\" sent");
+			steerCommand = true;
+			lastPressedKey = System::Windows::Forms::Keys::W;
+			break;
+		case System::Windows::Forms::Keys::Up:
+			CppWinForm1::PC_Unit::send("F");
+			CppWinForm1::PC_Unit::writeToUser("\"F\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::Up;
+			steerCommand = true;
+			break;
+		case System::Windows::Forms::Keys::E:
+			CppWinForm1::PC_Unit::send("E");
+			CppWinForm1::PC_Unit::writeToUser("\"E\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::E;
+			steerCommand = true;
+			break;
+		case System::Windows::Forms::Keys::A:
+			CppWinForm1::PC_Unit::send("L");
+			CppWinForm1::PC_Unit::writeToUser("\"L\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::A;
+			steerCommand = true;
+			break;
+		case System::Windows::Forms::Keys::Left:
+			CppWinForm1::PC_Unit::send("L");
+			CppWinForm1::PC_Unit::writeToUser("\"L\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::Left;
+			steerCommand = true;
+			break;
+		case System::Windows::Forms::Keys::S:
+			CppWinForm1::PC_Unit::send("B");
+			CppWinForm1::PC_Unit::writeToUser("\"B\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::S;
+			steerCommand = true;
+			break;
+		case System::Windows::Forms::Keys::Down:
+			CppWinForm1::PC_Unit::send("B");
+			CppWinForm1::PC_Unit::writeToUser("\"B\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::Down;
+			steerCommand = true;
+			break;
+		case System::Windows::Forms::Keys::D:
+			CppWinForm1::PC_Unit::send("R");
+			CppWinForm1::PC_Unit::writeToUser("\"R\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::D;
+			steerCommand = true;
+			break;
+		case System::Windows::Forms::Keys::Right:
+			CppWinForm1::PC_Unit::send("R");
+			CppWinForm1::PC_Unit::writeToUser("\"R\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::Right;
+			steerCommand = true;
+			break;
+		case System::Windows::Forms::Keys::C:
+			CppWinForm1::PC_Unit::send("c");
+			CppWinForm1::PC_Unit::writeToUser("\"c\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::C;
+			break;
+		case System::Windows::Forms::Keys::O:
+			CppWinForm1::PC_Unit::send("o");
+			CppWinForm1::PC_Unit::writeToUser("\"o\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::O;
+			break;
+		case System::Windows::Forms::Keys::H:
+			CppWinForm1::PC_Unit::send("h");
+			CppWinForm1::PC_Unit::writeToUser("\"h\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::H;
+			break;
+		case System::Windows::Forms::Keys::L:
+			CppWinForm1::PC_Unit::send("l");
+			CppWinForm1::PC_Unit::writeToUser("\"l\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::L;
+			break;
+		case System::Windows::Forms::Keys::Enter:
+			CppWinForm1::PC_Unit::send("d");
+			CppWinForm1::PC_Unit::writeToUser("\"d\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::Enter;
+			break;
+		case System::Windows::Forms::Keys::Escape:
+			this->Close();
+		case System::Windows::Forms::Keys::Space:
+			CppWinForm1::PC_Unit::send("S");
+			CppWinForm1::PC_Unit::writeToUser("\"S\" sent");
+			lastPressedKey = System::Windows::Forms::Keys::Space;
+		}
+	}
+	return System::Void();
+}
