@@ -14,7 +14,9 @@
 volatile unsigned int recieved_data = 0;
 volatile uint16_t US_sens_front_left = 0x0;
 volatile uint16_t US_sens_back_left = 0x0;
-volatile uint16_t US_sens_right = 0x0;
+//volatile uint16_t US_sens_right = 0x0;
+volatile uint8_t IR_sens_left = 0x0;
+volatile uint8_t IR_sens_right = 0x0;
 volatile uint8_t IR_sens_front = 0x0;
 volatile uint8_t Gyro_sens = 0x0;
 volatile uint16_t Photo_distance = 0x0;
@@ -39,12 +41,25 @@ volatile signed int colDir;
 
 //Interrupt from firefly
 ISR(USART_RXC_vect) {
+	
+	PORTA = 0x01;
+	PORTA = 0x00;
 	//Send data to buss
+	cli();
 	TWITransmitData(UDR);
+	sei();
+	
+	PORTA = 0x02;
+	PORTA = 0x00;
 }
 
 //Interrupt from TWI-bus
 ISR(TWI_vect){
+	
+	PORTA = 0x02;
+	PORTA = 0x00;
+	
+	cli();
 	
 	//Ready to recieve data
 	TWCR = (0<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
@@ -56,6 +71,11 @@ ISR(TWI_vect){
 	
 	//Call recieve function
 	TWIRecieveFromSens();
+	
+	sei();
+	
+	PORTA = 0x01;
+	PORTA = 0x00;
 }
 
 //bluetooth config
@@ -142,11 +162,14 @@ void TWIStop(void) {
 //Send 8-bit data to bus
 void TWITransmitData(uint8_t data) {
 	
-	//Disable interrupts while sending data
-	cli();
+	PORTA = 0x01;
+	PORTA = 0x00;
 	
 	//Send start condition
 	TWIStart();
+	
+	PORTA = 0x02;
+	PORTA = 0x00;
 	
 	//Check if start is sent
 	if (!((TWSR & 0xF8) == 0x08 || (TWSR & 0xF8) == 0x10));
@@ -188,9 +211,6 @@ void TWITransmitData(uint8_t data) {
 	
 	//Send stop condition
 	TWIStop();
-	
-	//Enable interrupts again
-	sei();
 }
 
 //Send the data
@@ -250,9 +270,9 @@ void TWIRecieveFromSens(void) {
 	//Get the values from the bus
 	US_sens_front_left = Recieve16Data();
 	US_sens_back_left = Recieve16Data();
-	US_sens_right = Recieve16Data();
+	IR_sens_left = Recieve8Data();
+	IR_sens_right = Recieve8Data();
 	IR_sens_front = Recieve8Data();
-	//US_sens_ahead = Recieve16Data();
 	Gyro_sens = Recieve8Data();
 	Photo_distance = Recieve16Data();
 	IR_detector = Recieve8Data();
@@ -274,17 +294,16 @@ void TWIRecieveFromSens(void) {
 //send sensor data to PC
 void sendSensorData(void) {
 	bluetooth_transmit('s');
+	
 	bluetooth_transmit(US_sens_front_left >> 8);
 	bluetooth_transmit(US_sens_front_left & 0xFF);
 	
 	bluetooth_transmit(US_sens_back_left >> 8);
 	bluetooth_transmit(US_sens_back_left & 0xFF);
 	
-	bluetooth_transmit(US_sens_right >> 8);
-	bluetooth_transmit(US_sens_right & 0xFF);
-	
+	bluetooth_transmit(IR_sens_left);
+	bluetooth_transmit(IR_sens_right);
 	bluetooth_transmit(IR_sens_front);
-	
 	bluetooth_transmit(Gyro_sens);
 
 	bluetooth_transmit(Photo_distance >> 8);
@@ -370,7 +389,7 @@ void controlDecision(){
 	if (US_sens_front_left > 0x085C)
 	{
 		//Four-way intersection
-		if ((US_sens_right > 0x085C) && (IR_sens_front > 0x085C))
+		if ((IR_sens_right > 0x085C) && (IR_sens_front > 0x085C))
 		{
 			//Turn left if uncharted
 			//Direction: up or down
@@ -458,7 +477,7 @@ void controlDecision(){
 		}
 		
 		//Three-way intersection as in pic 5
-		else if ((IR_sens_front > 0x085C) && (US_sens_right <= 0x085C))
+		else if ((IR_sens_front > 0x085C) && (IR_sens_right <= 0x085C))
 		{
 			//Turn left if uncharted
 			if (mapArray[roboPos[1]+1][roboPos[2]] != 'c')
@@ -483,7 +502,7 @@ void controlDecision(){
 			mapArray[roboPos[1]+1][roboPos[2]] == 'o';
 		}
 		//Three-way intersection as in pic 3
-		else if ((US_sens_right > 0x085C) && (IR_sens_front <= 0x085C))
+		else if ((IR_sens_right > 0x085C) && (IR_sens_front <= 0x085C))
 		{
 			//Turn left if uncharted
 			if (mapArray[roboPos[1]][roboPos[2]-1] != 'c')
@@ -514,7 +533,7 @@ void controlDecision(){
 		}
 	}
 	//If right sensor value is larger than 20 cm
-	else if (US_sens_right > 0x085C)
+	else if (IR_sens_right > 0x085C)
 	{
 		//Three-way intersection as in pic 4
 		if ((IR_sens_front > 0x085C) && (US_sens_front_left <= 0x085C))
@@ -543,7 +562,7 @@ void controlDecision(){
 		}
 	}
 	//Dead-end as in pic 7
-	else if ((IR_sens_front < 0x085C) && (US_sens_right < 0x085C) && (US_sens_front_left < 0x085C))
+	else if ((IR_sens_front < 0x085C) && (IR_sens_right < 0x085C) && (US_sens_front_left < 0x085C))
 	{
 		//Turn 180 degrees and go back to decision point
 		TWITransmitData('u');
@@ -586,28 +605,38 @@ void check_dist(){
 
 //checks if in a intersection
 void check_cross(){
-	if (US_sens_front_left > 0x085C) // || (US_sens_right >= 0x085C
+	if (IR_sens_left < 0x1c)
 	{
-		TWITransmitData('S');
-		_delay_ms(500);
 		TWITransmitData('b');
 		_delay_ms(1000);
-		if (US_sens_front_left > 0x085C)
-		{
-			testControl();
-		}
-		
-		else
-		{
-			TWITransmitData('B');
-			_delay_ms(500);
-			goForward();
-		}
+		TWITransmitData('s');
+		_delay_ms(2000);
+		TWITransmitData('p');
+		return;
 	}
+		
+	if (IR_sens_right < 0x1c)
+	{
+		TWITransmitData('z');
+		_delay_ms(1000);
+		TWITransmitData('k');
+		_delay_ms(2000);
+		TWITransmitData('p');
+		return;
+	}
+	
+	if (IR_sens_front > 0x82)
+	{
+		TWITransmitData('u');
+		_delay_ms(2000);
+		TWITransmitData('p');
+	}
+		
 }
 
 int main(void)
 {
+	DDRA = 0xFF;
 
 	TWIInit();
 	init_bluetooth();
@@ -619,27 +648,38 @@ int main(void)
 	{
 		//check if autonomous mode
 		if (!(PINB & (1<<PINB0))) {
-			if (pin == 2 || pin == 1)
-			{
-				//Transmit changed state to computer
-				bluetooth_transmit('n');
-				pin = 0;
-			}
-			sendSensorData();
+			
 			_delay_ms(100);
-			//Do autonomous mode things
+			TWITransmitData('p');
+			
+			while (1)
+			{
+				check_cross();
+			}		
+			
 		}
 		else
 		{
-			if (pin == 2 || pin == 0)
-			{
-				//Transmit changed state to computer
-				bluetooth_transmit('r');
-				pin = 1;
-			}
+
 			sendSensorData();
 			_delay_ms(100);
 		}
 		
-		}
+	}
 }
+
+
+// 			if (pin == 2 || pin == 1)
+// 			{
+// 				//Transmit changed state to computer
+// 				bluetooth_transmit('n');
+// 				pin = 0;
+// 			}
+
+
+// 			if (pin == 2 || pin == 0)
+// 						{
+// 							//Transmit changed state to computer
+// 							bluetooth_transmit('r');
+// 							pin = 1;
+// 						}
