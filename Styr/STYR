@@ -17,11 +17,14 @@
  volatile uint8_t kommData = 0b01010011;
  volatile uint16_t US_sens_front_left = 0x0;
  volatile uint16_t US_sens_back_left = 0x0;
- volatile uint16_t US_sens_right = 0x0;
+ //volatile uint16_t US_sens_right = 0x0;
+ volatile uint8_t IR_sens_left = 0x0;
+ volatile uint8_t  IR_sens_right = 0x0;
  volatile uint8_t IR_sens_front = 0x0;
  volatile uint8_t Gyro_sens = 0x0;
  volatile uint16_t Photo_distance= 0x0;
  volatile uint16_t ir_detected = 0x0;
+ uint16_t speedPD = 0x0FF;
  uint16_t speed = 0x1FF;
  
   //Avbrottsvektor
@@ -156,7 +159,8 @@ uint8_t Recieve8Data(void) {
  
  	US_sens_front_left = Recieve16Data();
 	US_sens_back_left = Recieve16Data();
-	US_sens_right = Recieve16Data();
+	IR_sens_left = Recieve8Data();
+	IR_sens_right = Recieve8Data();
 	IR_sens_front = Recieve8Data();
 	Gyro_sens = Recieve8Data();
 	Photo_distance = Recieve16Data();
@@ -214,12 +218,9 @@ uint8_t Recieve8Data(void) {
 	 
 	 uint16_t sum_velocity = 0x0;
 	 
-	 while(sum_velocity < 0xF00)
+	 while(sum_velocity < 0xB00)
 	 {
-		signed int temp;
-		if (Gyro_sens < 0xAC) temp = 0xAC - Gyro_sens;
-		else temp = Gyro_sens - 0xAC;
-		sum_velocity = sum_velocity + temp;
+		sum_velocity += abs(Gyro_sens - 0xAB);
 		_delay_ms(6);
 	 }
 	 
@@ -236,12 +237,9 @@ void rotate_90_right(void){
  
  uint16_t sum_velocity = 0x0;
  
- while(sum_velocity < 0xF00)
+ while(sum_velocity < 0x900)
  {
-	 signed int temp;
-	 if (Gyro_sens < 0xAC) temp = 0xAC - Gyro_sens;
-	 else temp = Gyro_sens - 0xAC;
-	 sum_velocity = sum_velocity + temp;
+	 sum_velocity += abs(Gyro_sens- 0xAB);
 	 _delay_ms(6);
  }
  
@@ -249,24 +247,8 @@ void rotate_90_right(void){
 }
  
 void rotate_180(void){
-	//left-wise (anti-clock) rotation increases gyro
-	PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
-	PORTD |= (1<<PORTD1); // DIR_LEFT framåt
-	OCR1A = speed;
-	OCR1B = speed;
-	 
-	uint16_t sum_velocity = 0x0;
-	 
-	while(sum_velocity < 0x2000)
-	 {
-		 signed int temp;
-		 if (Gyro_sens < 0xAC) temp = 0xAC - Gyro_sens;
-		 else temp = Gyro_sens - 0xAC;
-		 sum_velocity = sum_velocity + temp;
-		 _delay_ms(6);
-	 }
-	 
-	 kommData = 'S';
+	rotate_90_left();
+	rotate_90_left();
 }
 
  void turn_right(unsigned int speed)
@@ -320,8 +302,8 @@ void rotate_180(void){
 	   
 	   PORTD |= (1<<PORTD0); // DIR_RIGHT Direction framåt
 	   PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
-	   OCR1A = speed;
-	   OCR1B = speed;
+	   OCR1A = speedPD;
+	   OCR1B = speedPD;
 	   
 	   while (1){
 		   if(kommData != 'p') return;
@@ -353,9 +335,9 @@ void rotate_180(void){
 				   pd_term = p_term - d_term;
 			   }
 			   
-			   if (pd_term > 0x01FA) pd_term = 0x01FA;
-			   OCR1B = speed - pd_term; //left
-			   OCR1A = speed + pd_term; //right
+			   if (pd_term > 0x00FF) pd_term = 0x00FF;
+			   OCR1B = speedPD - pd_term; //left
+			   OCR1A = speedPD + pd_term; //right
 			   
 			   } else {
 			   //to far to the left
@@ -380,9 +362,9 @@ void rotate_180(void){
 				   pd_term = p_term + d_term;
 			   }
 			   
-			   if (pd_term > 0x01FA) pd_term = 0x01FA;
-			   OCR1B = speed + pd_term; //left
-			   OCR1A = speed - pd_term; //right
+			   if (pd_term > 0x00FF) pd_term = 0x00FF;
+			   OCR1B = speedPD + pd_term; //left
+			   OCR1A = speedPD - pd_term; //right
 		   }
 		   
 	   }
@@ -421,7 +403,7 @@ void rotate_180(void){
  void shortForward(uint16_t i)
  { 
 	 uint16_t distance = Photo_distance;
-	 forward(speed, speed);
+	 forward(speedPD, speedPD);
 	
 	 while(Photo_distance - distance < i);
 	 
@@ -440,7 +422,7 @@ void rotate_180(void){
  
  void straightForward(void) 
  {
-	shortForward(0x11);
+	shortForward(0x9);
  }
    
  void manual_mode(void){
@@ -502,6 +484,9 @@ void rotate_180(void){
 			 break;
 			 case 'b':
 			 shortForward(0x5);
+			 break;
+			 case 'z':
+			 shortForward(0x6);
 			 break;
 			 case 'j':
 			 straightForward();
