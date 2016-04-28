@@ -20,6 +20,10 @@ uint16_t US_sens_right = 0x0;
 uint16_t US_pre_sens_right = 0x0;
 uint8_t IR_sens_front = 0x0;
 uint8_t IR_pre_sens_front = 0x0;
+uint8_t IR_sens_left = 0x0;
+uint8_t IR_pre_sens_left = 0x0;
+uint8_t IR_sens_right = 0x0;
+uint8_t IR_pre_sens_right = 0x0;
 uint8_t Gyro_sens = 0x0;
 uint16_t distance_photo = 0x00;
 unsigned int black_white_check= 0;
@@ -52,11 +56,24 @@ void GyroInit(void) {
 	
 }
 
-void IRInit(void) {
+void IRDistInit(void) {
 	ADMUX = 0x66;		//Leftshift the output from the ad-converter (reads from ADCH) and sets A6 as input
 	ADCSRA = 0x83;		//Sets up the ad-converter to enable and prescale with 8
 	
 }
+
+void IRLeftInit(void)
+{
+	ADMUX = 0x65;
+	ADCSRA = 0x83;
+}
+
+void IRRightInit(void)
+{
+	ADMUX = 0x61;
+	ADCSRA = 0x83;
+}
+
 void PhotoInit(void){
 		ADMUX = 0x67;		//Leftshift the output from the ad-converter (reads from ADCH) and sets A7 as input
 		ADCSRA = 0x83;		//Sets up the ad-converter to enable and prescale with 8
@@ -75,8 +92,8 @@ void TWIStop(void) {
 }
 
 //Skickar adress + data
-void TWITransmitData(uint16_t data1, uint16_t data2, uint16_t data3, uint8_t data4, uint8_t data5, uint16_t data6, uint8_t data7) {
-	
+void TWITransmitData(uint16_t data1, uint16_t data2, uint8_t data3, uint8_t data4, uint8_t data5, uint8_t data6, uint16_t data7, uint8_t data8) {
+	                   
 	TWIStart();
 
 	//Skicka SLA + W, adress 00 för att det är general call (till alla slaves)
@@ -111,28 +128,27 @@ void TWITransmitData(uint16_t data1, uint16_t data2, uint16_t data3, uint8_t dat
 	//Send LSB data2
 	newData = data2 & 0xFF;
 	TWISend(newData);
+
+	//Send data3
+	TWISend(data3);
 	
-	//Send MSB data3
-	newData = data3 >> 8;
-	TWISend(newData);
-	
-	//Send LSB data3
-	newData = data3 & 0xFF;
-	TWISend(newData);
-	
+	//Send data4
 	TWISend(data4);
-	
+	//Send data5
 	TWISend(data5);
+	//Send data6
+	TWISend(data6);
 	
-	//Send MSB data5
-	newData = data6 >> 8;
+	//Send MSB data7
+	newData = data7 >> 8;
 	TWISend(newData);
 	
-	//Send LSB data5
-	newData = data6 & 0xFF;
+	//Send LSB data7
+	newData = data7 & 0xFF;
 	TWISend(newData);
 	
-	TWISend(data7);
+	//Send LSB data8
+	TWISend(data8);
 	
 	TWIStop();
 }
@@ -154,9 +170,9 @@ void TWISend(uint8_t data) {
 void readFromSensFront(void) {
 	
 	// send pulse to US-sensor two, back left
-	PORTA = (1<<PORTA1); // Sätter PA1 till hög under bestämd tid
+	PORTB = (1<<PORTB3); // Sätter PA1 till hög under bestämd tid
 	_delay_us(40);
-	PORTA = (0<<PORTA1);// Sätter PA1 till låg och startar mätningen
+	PORTB = (0<<PORTB3);// Sätter PA1 till låg och startar mätningen
 	
 	//wait for us-sensor to start measuring
 	while(!(PINA & (1<<PORTA2)));
@@ -206,35 +222,6 @@ void readFromSensBack(void) {
 	//reset counter
 	TCNT1 = 0x0;
 }
-
-void readFromSensRight(void) {
-	
-	// send pulse to US-sensor three, front right
-	PORTB = (1<<PORTB0); // Sätter PB0 till hög under bestämd tid
-	_delay_us(40);
-	PORTB = (0<<PORTB0);// Sätter PA1 till låg och startar mätningen
-	
-	//wait for us-sensor to start measuring
-	while(!(PINB & (1<<PORTB1)));
-
-	//Start counter
-	TCCR1B =(1<<CS10);
-	
-	//wait for final value from us-sensor
-	while(PINB & (1<<PORTB1));
-
-	//Stops counter
-	TCCR1B = (0<<CS10);
-	
-	US_pre_sens_right = US_sens_right;
-	
-	//Read counter
-	US_sens_right = TCNT1;
-	
-	//reset counter
-	TCNT1 = 0x0;
-}
-
 void readFromGyro(void)
 {
 	GyroInit();
@@ -249,7 +236,7 @@ void readFromGyro(void)
 
 void readFromIRDistance(void)
 {
-	IRInit();
+	IRDistInit();
 	
 	ADCSRA |= (1<<ADSC);// Start the conversion
 	
@@ -260,6 +247,35 @@ void readFromIRDistance(void)
 	IR_sens_front = ADCH;
 	
 }
+
+void readFromIRLeft(void)
+{
+	IRLeftInit();
+	
+	ADCSRA |= (1<<ADSC);// Start the conversion
+	
+	while( !(ADCSRA & (1<<ADIF)));
+	
+	IR_pre_sens_left = IR_sens_left;
+	
+	IR_sens_left = ADCH;
+	
+}
+
+void readFromIRRight(void)
+{
+	IRRightInit();
+	
+	ADCSRA |= (1<<ADSC);// Start the conversion
+	
+	while( !(ADCSRA & (1<<ADIF)));
+	
+	IR_pre_sens_right = IR_sens_right;
+	
+	IR_sens_right = ADCH;
+	
+}
+
 void readFromPhoto(void)
 {
 	PhotoInit();
@@ -369,8 +385,8 @@ void read_IR(void){
 int main(void)
 {
 	//Init of sensorreading
-    DDRA = (1 << PORTA1)|(1 << PORTA3); //PA1 and PA3 to out, PA0 in
-	DDRB = (1<< PORTB0);
+    DDRA = (1 << PORTA3); //PB3 and PA3 to out to US-sensors,
+	DDRB = (1 << PORTB3);
 	TWIInit();
 	
 	//GyroInit();
@@ -405,12 +421,12 @@ int main(void)
 		}
 		
 		readFromGyro();
-		
+		readFromIRLeft();
 		readFromPhoto();
 		
 		if (loop)
 		{
-			readFromSensRight();
+			readFromIRRight();
 		}
 		else
 		{
@@ -419,8 +435,10 @@ int main(void)
 
 		uint16_t US_back_left = 0x0;
 		uint16_t US_front_left = 0x0;
-		uint16_t US_right = 0x0;
+		//uint16_t US_right = 0x0;
 		uint8_t IR_front = 0x0;
+		uint8_t IR_right = 0x0;
+		uint8_t IR_left = 0x0;
 
 		//Back left, if difference between new and old is large send out old value again, else send new
 		if (abs(US_pre_sens_back_left-US_sens_back_left) > US_pre_sens_back_left*0.2) 
@@ -442,15 +460,6 @@ int main(void)
 			US_front_left = US_sens_front_left;
 		}
 		
-		//Front right, if difference between new and old is large send out old value again, lese send new
-		if (abs(US_pre_sens_right-US_sens_right) > US_pre_sens_right*0.2)
-		{
-			US_right = US_pre_sens_right;
-		}
-		else
-		{
-			US_right = US_sens_right;
-		}
 		
 		//Front, if difference between new and old is large send out old value again, else send new
 		if (abs(IR_pre_sens_front - IR_sens_front) > IR_pre_sens_front*0.2)
@@ -462,7 +471,27 @@ int main(void)
 			IR_front = IR_sens_front;
 		}
 		
-		TWITransmitData(US_front_left, US_back_left, US_right, IR_front, Gyro_sens, distance_photo, ir_detected);
+		//Right, if difference between new and old is large send out old value again, else send new
+		if (abs(IR_pre_sens_right - IR_sens_right) > IR_pre_sens_right*0.2)
+		{
+			IR_right = IR_pre_sens_right;
+		}
+		else
+		{
+			IR_right = IR_sens_right;
+		}
+		
+		//Left, if difference between new and old is large send out old value again, else send new
+		if (abs(IR_pre_sens_left - IR_sens_left) > IR_pre_sens_left*0.2)
+		{
+			IR_left = IR_pre_sens_left;
+		}
+		else
+		{
+			IR_left = IR_sens_left;
+		}
+		
+		TWITransmitData(US_front_left, US_back_left, IR_sens_left, IR_sens_right, IR_front, Gyro_sens, distance_photo, ir_detected);
 		
 	}
 }
