@@ -49,6 +49,8 @@ namespace CppWinForm1 {
 	private: static System::IO::Ports::SerialPort^  serialPort1;
 	private: static System::IO::Ports::SerialPort^  serialPort2;
 	private: static System::Windows::Forms::TextBox^  outPutTextBox;
+			 // Replace the three rows of code above with the commented code below to make the code work
+
 			 //private: static System::IO::Ports::SerialPort^  serialPort1;
 			 //private: static System::IO::Ports::SerialPort^  serialPort2;
 			 //private: static System::Windows::Forms::TextBox^  outPutTextBox;
@@ -72,12 +74,12 @@ namespace CppWinForm1 {
 	private: System::Windows::Forms::TextBox^  textBoxLeftUSRear;
 
 	private: System::Windows::Forms::FlowLayoutPanel^  flowLayoutPanel6;
-	private: System::Windows::Forms::Label^  labelDistance;
-	private: System::Windows::Forms::TextBox^  textBoxDistance;
+	private: System::Windows::Forms::Label^  labelIRRight;
+	private: System::Windows::Forms::TextBox^  textBoxIRRight;
 
 	private: System::Windows::Forms::FlowLayoutPanel^  flowLayoutPanel8;
-	private: System::Windows::Forms::Label^  labelRightUS;
-	private: System::Windows::Forms::TextBox^  textBoxRightUS;
+	private: System::Windows::Forms::Label^  labelIRLeft;
+	private: System::Windows::Forms::TextBox^  textBoxIRLeft;
 
 	private: System::Windows::Forms::FlowLayoutPanel^  flowLayoutPanel4;
 	private: System::Windows::Forms::Label^  labelIRFront;
@@ -88,7 +90,7 @@ namespace CppWinForm1 {
 	private: System::Windows::Forms::TextBox^  textBoxGyro;
 
 	private: System::Windows::Forms::FlowLayoutPanel^  flowLayoutPanel7;
-	private: System::Windows::Forms::Label^  labelIR;
+	private: System::Windows::Forms::Label^  labelIRGoal;
 	private: System::Windows::Forms::TextBox^  textBoxGoalDetector;
 	private: System::Windows::Forms::Button^  paintRectBut;
 
@@ -167,11 +169,11 @@ namespace CppWinForm1 {
 			this->labelIRFront = (gcnew System::Windows::Forms::Label());
 			this->textBoxIRFront = (gcnew System::Windows::Forms::TextBox());
 			this->flowLayoutPanel8 = (gcnew System::Windows::Forms::FlowLayoutPanel());
-			this->labelRightUS = (gcnew System::Windows::Forms::Label());
-			this->textBoxRightUS = (gcnew System::Windows::Forms::TextBox());
+			this->labelIRLeft = (gcnew System::Windows::Forms::Label());
+			this->textBoxIRLeft = (gcnew System::Windows::Forms::TextBox());
 			this->flowLayoutPanel6 = (gcnew System::Windows::Forms::FlowLayoutPanel());
-			this->labelDistance = (gcnew System::Windows::Forms::Label());
-			this->textBoxDistance = (gcnew System::Windows::Forms::TextBox());
+			this->labelIRRight = (gcnew System::Windows::Forms::Label());
+			this->textBoxIRRight = (gcnew System::Windows::Forms::TextBox());
 			this->flowLayoutPanel9 = (gcnew System::Windows::Forms::FlowLayoutPanel());
 			this->labelPhotoDistance = (gcnew System::Windows::Forms::Label());
 			this->textBoxPhotoDistance = (gcnew System::Windows::Forms::TextBox());
@@ -179,7 +181,7 @@ namespace CppWinForm1 {
 			this->labelGyro = (gcnew System::Windows::Forms::Label());
 			this->textBoxGyro = (gcnew System::Windows::Forms::TextBox());
 			this->flowLayoutPanel7 = (gcnew System::Windows::Forms::FlowLayoutPanel());
-			this->labelIR = (gcnew System::Windows::Forms::Label());
+			this->labelIRGoal = (gcnew System::Windows::Forms::Label());
 			this->textBoxGoalDetector = (gcnew System::Windows::Forms::TextBox());
 			this->paintRectBut = (gcnew System::Windows::Forms::Button());
 			this->labelUncharted = (gcnew System::Windows::Forms::Label());
@@ -337,9 +339,9 @@ namespace CppWinForm1 {
 			this->flowLayoutPanel1->Controls->Add(this->panelSensRecieved);
 			this->flowLayoutPanel1->Controls->Add(this->flowLayoutPanel2);
 			this->flowLayoutPanel1->Controls->Add(this->flowLayoutPanel3);
-			this->flowLayoutPanel1->Controls->Add(this->flowLayoutPanel4);
 			this->flowLayoutPanel1->Controls->Add(this->flowLayoutPanel8);
 			this->flowLayoutPanel1->Controls->Add(this->flowLayoutPanel6);
+			this->flowLayoutPanel1->Controls->Add(this->flowLayoutPanel4);
 			this->flowLayoutPanel1->Controls->Add(this->flowLayoutPanel9);
 			this->flowLayoutPanel1->Controls->Add(this->flowLayoutPanel5);
 			this->flowLayoutPanel1->Controls->Add(this->flowLayoutPanel7);
@@ -467,66 +469,66 @@ namespace CppWinForm1 {
 			// flowLayoutPanel8
 			// 
 			this->flowLayoutPanel8->BackColor = System::Drawing::Color::CadetBlue;
-			this->flowLayoutPanel8->Controls->Add(this->labelRightUS);
-			this->flowLayoutPanel8->Controls->Add(this->textBoxRightUS);
+			this->flowLayoutPanel8->Controls->Add(this->labelIRLeft);
+			this->flowLayoutPanel8->Controls->Add(this->textBoxIRLeft);
 			this->flowLayoutPanel8->Location = System::Drawing::Point(3, 191);
 			this->flowLayoutPanel8->Name = L"flowLayoutPanel8";
 			this->flowLayoutPanel8->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel8->TabIndex = 19;
 			// 
-			// labelRightUS
+			// labelIRLeft
 			// 
-			this->labelRightUS->AutoSize = true;
-			this->labelRightUS->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+			this->labelIRLeft->AutoSize = true;
+			this->labelIRLeft->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
-			this->labelRightUS->Location = System::Drawing::Point(3, 0);
-			this->labelRightUS->Name = L"labelRightUS";
-			this->labelRightUS->Size = System::Drawing::Size(95, 25);
-			this->labelRightUS->TabIndex = 0;
-			this->labelRightUS->Text = L"Right US:";
+			this->labelIRLeft->Location = System::Drawing::Point(3, 0);
+			this->labelIRLeft->Name = L"labelIRLeft";
+			this->labelIRLeft->Size = System::Drawing::Size(95, 25);
+			this->labelIRLeft->TabIndex = 0;
+			this->labelIRLeft->Text = L"Left IR:";
 			// 
-			// textBoxRightUS
+			// textBoxIRLeft
 			// 
-			this->textBoxRightUS->BorderStyle = System::Windows::Forms::BorderStyle::None;
-			this->textBoxRightUS->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+			this->textBoxIRLeft->BorderStyle = System::Windows::Forms::BorderStyle::None;
+			this->textBoxIRLeft->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
-			this->textBoxRightUS->Location = System::Drawing::Point(3, 28);
-			this->textBoxRightUS->Name = L"textBoxRightUS";
-			this->textBoxRightUS->ReadOnly = true;
-			this->textBoxRightUS->Size = System::Drawing::Size(105, 34);
-			this->textBoxRightUS->TabIndex = 1;
+			this->textBoxIRLeft->Location = System::Drawing::Point(3, 28);
+			this->textBoxIRLeft->Name = L"textBoxIRLeft";
+			this->textBoxIRLeft->ReadOnly = true;
+			this->textBoxIRLeft->Size = System::Drawing::Size(105, 34);
+			this->textBoxIRLeft->TabIndex = 1;
 			// 
 			// flowLayoutPanel6
 			// 
 			this->flowLayoutPanel6->BackColor = System::Drawing::Color::CadetBlue;
-			this->flowLayoutPanel6->Controls->Add(this->labelDistance);
-			this->flowLayoutPanel6->Controls->Add(this->textBoxDistance);
+			this->flowLayoutPanel6->Controls->Add(this->labelIRRight);
+			this->flowLayoutPanel6->Controls->Add(this->textBoxIRRight);
 			this->flowLayoutPanel6->Location = System::Drawing::Point(124, 191);
 			this->flowLayoutPanel6->Name = L"flowLayoutPanel6";
 			this->flowLayoutPanel6->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel6->TabIndex = 17;
 			// 
-			// labelDistance
+			// labelIRRight
 			// 
-			this->labelDistance->AutoSize = true;
-			this->labelDistance->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+			this->labelIRRight->AutoSize = true;
+			this->labelIRRight->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
-			this->labelDistance->Location = System::Drawing::Point(3, 0);
-			this->labelDistance->Name = L"labelDistance";
-			this->labelDistance->Size = System::Drawing::Size(99, 25);
-			this->labelDistance->TabIndex = 0;
-			this->labelDistance->Text = L"Travelled:";
+			this->labelIRRight->Location = System::Drawing::Point(3, 0);
+			this->labelIRRight->Name = L"labelIRRight";
+			this->labelIRRight->Size = System::Drawing::Size(99, 25);
+			this->labelIRRight->TabIndex = 0;
+			this->labelIRRight->Text = L"Right IR:";
 			// 
-			// textBoxDistance
+			// textBoxIRRight
 			// 
-			this->textBoxDistance->BorderStyle = System::Windows::Forms::BorderStyle::None;
-			this->textBoxDistance->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+			this->textBoxIRRight->BorderStyle = System::Windows::Forms::BorderStyle::None;
+			this->textBoxIRRight->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
-			this->textBoxDistance->Location = System::Drawing::Point(3, 28);
-			this->textBoxDistance->Name = L"textBoxDistance";
-			this->textBoxDistance->ReadOnly = true;
-			this->textBoxDistance->Size = System::Drawing::Size(105, 34);
-			this->textBoxDistance->TabIndex = 1;
+			this->textBoxIRRight->Location = System::Drawing::Point(3, 28);
+			this->textBoxIRRight->Name = L"textBoxIRRight";
+			this->textBoxIRRight->ReadOnly = true;
+			this->textBoxIRRight->Size = System::Drawing::Size(105, 34);
+			this->textBoxIRRight->TabIndex = 1;
 			// 
 			// flowLayoutPanel9
 			// 
@@ -595,23 +597,23 @@ namespace CppWinForm1 {
 			// flowLayoutPanel7
 			// 
 			this->flowLayoutPanel7->BackColor = System::Drawing::Color::CadetBlue;
-			this->flowLayoutPanel7->Controls->Add(this->labelIR);
+			this->flowLayoutPanel7->Controls->Add(this->labelIRGoal);
 			this->flowLayoutPanel7->Controls->Add(this->textBoxGoalDetector);
 			this->flowLayoutPanel7->Location = System::Drawing::Point(3, 347);
 			this->flowLayoutPanel7->Name = L"flowLayoutPanel7";
 			this->flowLayoutPanel7->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel7->TabIndex = 18;
 			// 
-			// labelIR
+			// labelIRGoal
 			// 
-			this->labelIR->AutoSize = true;
-			this->labelIR->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+			this->labelIRGoal->AutoSize = true;
+			this->labelIRGoal->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
-			this->labelIR->Location = System::Drawing::Point(3, 0);
-			this->labelIR->Name = L"labelIR";
-			this->labelIR->Size = System::Drawing::Size(88, 50);
-			this->labelIR->TabIndex = 0;
-			this->labelIR->Text = L"Goal detector:";
+			this->labelIRGoal->Location = System::Drawing::Point(3, 0);
+			this->labelIRGoal->Name = L"labelIRGoal";
+			this->labelIRGoal->Size = System::Drawing::Size(88, 50);
+			this->labelIRGoal->TabIndex = 0;
+			this->labelIRGoal->Text = L"Goal detector:";
 			// 
 			// textBoxGoalDetector
 			// 
@@ -706,7 +708,7 @@ namespace CppWinForm1 {
 			// 
 			this->contextMenuStrip1->ImageScalingSize = System::Drawing::Size(24, 24);
 			this->contextMenuStrip1->Name = L"contextMenuStrip1";
-			this->contextMenuStrip1->Size = System::Drawing::Size(74, 4);
+			this->contextMenuStrip1->Size = System::Drawing::Size(61, 4);
 			// 
 			// textBox1
 			// 
@@ -783,6 +785,7 @@ namespace CppWinForm1 {
 			this->Name = L"PC_Unit";
 			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
 			this->Text = L"PC_Unit";
+			this->FormClosing += gcnew System::Windows::Forms::FormClosingEventHandler(this, &PC_Unit::PC_Unit_FormClosing);
 			this->flowLayoutPanel1->ResumeLayout(false);
 			this->flowLayoutPanel1->PerformLayout();
 			this->flowLayoutPanel2->ResumeLayout(false);
@@ -806,6 +809,10 @@ namespace CppWinForm1 {
 			this->PerformLayout();
 
 		}
+#pragma endregion
+		///<summary>
+		///Initialization of things not generated by the windows form
+		///</summary>
 		void InitializeOther(void) {
 			mapCols = 31;
 			mapRows = 17;
@@ -818,7 +825,6 @@ namespace CppWinForm1 {
 			mapBrush = gcnew Drawing::SolidBrush(Color::DeepPink);
 			readHeader = true;
 		}
-#pragma endregion
 		delegate void writeRecievedDelegateString(String^ s);
 		delegate void writeRecievedDelegateInt(int data);
 		delegate void sensorTextboxDelegate2(int data);
@@ -826,6 +832,7 @@ namespace CppWinForm1 {
 		delegate void keyboardButDelegate(bool enabled);
 		delegate void modeCheckedListBoxDelegate(System::Windows::Forms::CheckedListBox^ cLBox, char c);
 
+		///Paints a test map in the area in the form where the final map is to be painted
 	private: System::Void paintMapRect(char type, int rowIndex, int colIndex) {
 		switch (type) {
 		case 'o':
@@ -859,6 +866,7 @@ namespace CppWinForm1 {
 		int tmpHeight = (int)(0.9 * (float)mapHeight / mapRows);
 		mapGraphics->FillRectangle(mapBrush, tmpX, tmpY, tmpWidth, tmpHeight);
 	}
+			 ///Paints the background for the map
 	private: System::Void paintMapBackground()
 	{
 		Drawing::SolidBrush ^tmpBrush = gcnew Drawing::SolidBrush(Color::LightBlue);
@@ -884,6 +892,7 @@ namespace CppWinForm1 {
 		this->labelPosition->BackColor = Color::LightBlue;
 		this->labelGoal->BackColor = Color::LightBlue;
 	}
+			 ///Sends a String to robot via Bluetooth
 	public: static void send(String ^s)
 	{
 		if (serialPort2->IsOpen)
@@ -895,6 +904,7 @@ namespace CppWinForm1 {
 			writeToUser("CANNOT SEND: Serial port not open");
 		}
 	}
+			///Writes a String in the textBox for receieved bluetooth
 	private: void writeRecieved(String ^s)
 	{
 		try
@@ -916,6 +926,7 @@ namespace CppWinForm1 {
 			// window is closed
 		}
 	}
+			 ///Writes an int in the textBox for receieved bluetooth
 	private: void writeRecieved(int data)
 	{
 		if (this->BluetoothRecievedTextBox->InvokeRequired)
@@ -929,6 +940,7 @@ namespace CppWinForm1 {
 			this->BluetoothRecievedTextBox->Text += data;
 		}
 	}
+			 ///Enables the keyboardBut button
 	private: void setKeyboardButEnable(bool enabled)
 	{
 		if (this->keyboardBut->InvokeRequired)
@@ -942,6 +954,10 @@ namespace CppWinForm1 {
 			this->keyboardBut->Enabled = enabled;
 		}
 	}
+			 ///Sets the mode robot is in for display in the form (modeCheckedListBox)
+			 ///needs the checkedListBox and character that describes the mode
+			 /// 'n' is autonomous mode,
+			 /// 'r' is remote controlled mode
 	private: void setModeCheckedListBox(System::Windows::Forms::CheckedListBox^ cLBox, char c)
 	{
 		if (this->modeCheckedListBox->InvokeRequired)
@@ -957,13 +973,22 @@ namespace CppWinForm1 {
 				cLBox->SetItemChecked(0, false);
 				cLBox->SetItemChecked(1, true);
 			}
-			else
+			else if (c == 'r')
 			{
 				cLBox->SetItemChecked(0, true);
 				cLBox->SetItemChecked(1, false);
 			}
+			else
+			{
+				cLBox->SetItemChecked(0, false);
+				cLBox->SetItemChecked(1, false);
+			}
 		}
 	}
+			 ///Writes recieved sensor data to the designated textBox
+			 ///Give parameters:
+			 ///textBox - the designated textbox
+			 ///data - the sensor data to write
 	private: void writeSensorData(System::Windows::Forms::TextBox^ textbox, int data)
 	{
 		try
@@ -986,6 +1011,7 @@ namespace CppWinForm1 {
 			// window is closed
 		}
 	}
+			 ///Writes String to the textbox for program output to user
 	public: static void writeToUser(String ^s)
 	{
 		PC_Unit::outPutTextBox->ForeColor = Color::Blue;
@@ -993,11 +1019,14 @@ namespace CppWinForm1 {
 		PC_Unit::outPutTextBox->ForeColor = Color::Black;
 		PC_Unit::outPutTextBox->Text += s;
 	}
+			///Finds the availible COM ports and adds their names to the COM comboBox
+			///(might be redundant now)
 	private: void findPorts(void)
 	{
 		array<Object^>^ objectArray = SerialPort::GetPortNames();
 		this->COMComboBox->Items->AddRange(objectArray);
 	}
+			 ///opens two found COM ports (they should be opened in the correct order for send/recieve functions to work)
 	private: System::Void openCOMBut_Click(System::Object^  sender, System::EventArgs^  e)
 	{
 		paintMapBackground();
@@ -1037,6 +1066,7 @@ namespace CppWinForm1 {
 				this->modeCheckedListBox->Visible = true;
 				// Tell AVR, BT-link is up
 				send("e");
+				this->openCOMBut->Enabled = false;
 			}
 			catch (System::IO::IOException^)
 			{
@@ -1052,7 +1082,13 @@ namespace CppWinForm1 {
 			writeToUser("COM ports are already open fool!");
 		}
 	}
+			 ///Closes the COM ports in use
 	private: System::Void disconnectBut_Click(System::Object^  sender, System::EventArgs^  e) {
+		//serialPort1->RtsEnable = false;
+		//serialPort1->DtrEnable = false;
+		//serialPort2->RtsEnable = false;
+		//serialPort2->DtrEnable = false;
+		//Sleep(1000);
 		serialPort1->Close();
 		serialPort2->Close();
 		writeToUser("Disconnected from COM ports");
@@ -1061,30 +1097,35 @@ namespace CppWinForm1 {
 		this->sendButton->Enabled = false;
 		this->commandBox->Enabled = false;
 		this->COMComboBox->Enabled = false;
+		this->openCOMBut->Enabled = true;
 		labelCOMComboBox->ForeColor = Color::Gray;
+		setModeCheckedListBox(modeCheckedListBox, 'x');
 		this->AcceptButton = this->openCOMBut;
-		this->modeCheckedListBox->Visible = false;
+		this->Focus();
 	}
+			 ///sends what is written in the commandBox via bluetooth
 	private: System::Void sendButton_Click(System::Object^  sender, System::EventArgs^  e) {
 		String ^command = this->commandBox->Text;
 		if (this->serialPort2->IsOpen)
 		{
-			send(command);
-			writeToUser("\"" + command + "\"" + " sent");
-			this->commandBox->Text = "";
+			if (command != "") {
+				send(command);
+				writeToUser("\"" + command + "\"" + " sent");
+				this->commandBox->Text = "";
+			}
 		}
 		else
 		{
 			writeToUser("Serial port 2 aint open bro");
 		}
 	}
+			 ///Click och keyboardBut opens a new form that reads keys and sends them out via bluetooth
 	private: System::Void keyboardBut_Click(System::Object^  sender, System::EventArgs^  e);
+			 ///should never be used hopefully
 	private: System::Void serialPort1_DataReceived(System::Object^  sender, System::IO::Ports::SerialDataReceivedEventArgs^  e) {
 		writeRecieved("Data recieved on " + serialPort1->PortName);
 		String ^recieved = serialPort1->ReadExisting();
 		writeRecieved(recieved);
-		//this->BluetoothRecievedTextBox->Text += "->"+"Data recieved";
-		/*PC_Unit::BluetoothRecievedTextBox->Text += "->" + "Data recieved";*/
 	}
 	private: void ReadMap()
 	{
@@ -1102,29 +1143,38 @@ namespace CppWinForm1 {
 			}
 		}
 	}
-			 // Reads two bytes received in COM port and returns them as an int
+			 /// Reads two bytes received in COM port and returns them as an int
 	private: int Read16SP2()
 	{
-		int dataread = serialPort2->ReadByte();		// Read higher byte of uint16
-		int lowerbyte = serialPort2->ReadByte();	// Read lower byte of uint16
-		dataread = dataread << 8; // Left-shift by 8 bits to make room for lower byte
-		dataread += lowerbyte;
-		return dataread;
-
+		try
+		{
+			int dataread = serialPort2->ReadByte();		// Read higher byte of uint16
+			int lowerbyte = serialPort2->ReadByte();	// Read lower byte of uint16
+			dataread = dataread << 8; // Left-shift by 8 bits to make room for lower byte
+			dataread += lowerbyte;
+			return dataread;
+		}
+		catch (System::IO::IOException^)
+		{
+			//do nothing
+		}
 	}
-			 // Reads the sensor data receieved in the order it is sent
+			 /// Reads the sensor data receieved in the order it is sent
 	private: void ReadSensor()
 	{
 		//receive order: front left us, back left us, right,  gyro, distance photo, goaldetect ir, aheadpointing ir, 
 		writeSensorData(this->textBoxLeftUSFront, Read16SP2());
 		writeSensorData(this->textBoxLeftUSRear, Read16SP2());
-		writeSensorData(this->textBoxRightUS, Read16SP2());
+		writeSensorData(this->textBoxIRLeft, serialPort2->ReadByte());
+		writeSensorData(this->textBoxIRRight, serialPort2->ReadByte());
+		writeSensorData(this->textBoxIRFront, serialPort2->ReadByte());
 		writeSensorData(this->textBoxGyro, serialPort2->ReadByte());
-		writeSensorData(this->textBoxDistance, Read16SP2());
+		writeSensorData(this->textBoxPhotoDistance, Read16SP2());
 		writeSensorData(this->textBoxGoalDetector, serialPort2->ReadByte());
-		//writeSensorData(this->textBoxIRFront, serialPort2->ReadByte());
+		
 		readHeader = true;
 	}
+			 ///When data is recieved via bluetooth, the first byte is read as a header char that determines what to do with the received data
 	private: System::Void serialPort2_DataReceived(System::Object^  sender, System::IO::Ports::SerialDataReceivedEventArgs^  e) {
 		if (readHeader) {
 			try
@@ -1170,6 +1220,7 @@ namespace CppWinForm1 {
 			}
 		}
 	}
+			 ///Creates a "map" to draw an then paints it with the paintmaprect() method
 	private: System::Void paintRectBut_Click(System::Object^  sender, System::EventArgs^  e) {
 
 		char testMap[17][31];
@@ -1194,10 +1245,16 @@ namespace CppWinForm1 {
 			}
 		}
 	}
+			 ///When clicking the commandBox the commandBox text is erased and the forms acceptButton is set to the sendButton
 	private: System::Void commandBox_Click(System::Object^  sender, System::EventArgs^  e)
 	{
 		this->AcceptButton = this->sendButton;
 		this->commandBox->Text = "";
+	}
+			 ///... does nothing really
+	private: System::Void PC_Unit_FormClosing(System::Object^  sender, System::Windows::Forms::FormClosingEventArgs^  e) {
+		if (serialPort1->IsOpen) serialPort1->Close();
+		if (serialPort2->IsOpen) serialPort2->Close();
 	}
 	};
 }
