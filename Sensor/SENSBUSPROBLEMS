@@ -12,23 +12,16 @@
 #include <avr/interrupt.h>
 #include <util/twi.h>
 
-uint16_t US_sens_front_left = 0x0;
-uint16_t US_pre_sens_front_left = 0x0;
-uint16_t US_sens_back_left = 0x0;
-uint16_t US_pre_sens_back_left = 0x0;
-uint16_t US_sens_right = 0x0;
-uint16_t US_pre_sens_right = 0x0;
-uint8_t IR_sens_front = 0x0;
-uint8_t IR_pre_sens_front = 0x0;
+uint8_t IR_sens_front = 0x1;
 uint8_t IR_sens_left = 0x0;
-uint8_t IR_pre_sens_left = 0x0;
+uint8_t IR_sens_left_back = 0x0;
 uint8_t IR_sens_right = 0x0;
-uint8_t IR_pre_sens_right = 0x0;
 uint8_t Gyro_sens = 0x0;
 uint16_t distance_photo = 0x00;
 unsigned int black_white_check= 0;
 uint16_t photo_value = 0x0;
 uint8_t ir_detected = 0x00;
+
 //Initierar bussen
 void TWIInit(void) {
 	
@@ -42,7 +35,7 @@ void TWIInit(void) {
 	//Aktiverar bussen, aktiverar ackbit, aktiverar avbrott
 	TWCR = (1<<TWEN)|(1<<TWEA)|(1<<TWIE);
 	
-	//Slavadresser (sista ska vara ett för att enabla general call)
+	//Slavadresser 
 	//Kommmudul: 0x10
 	//Sensormodul: 0x20
 	//Styrmodul: 0x40
@@ -56,15 +49,14 @@ void GyroInit(void) {
 	
 }
 
-void IRDistInit(void) {
-	ADMUX = 0x66;		//Leftshift the output from the ad-converter (reads from ADCH) and sets A6 as input
+void IRFrontInit(void) {
+	ADMUX = 0x63;		//Leftshift the output from the ad-converter (reads from ADCH) and sets A6 as input
 	ADCSRA = 0x83;		//Sets up the ad-converter to enable and prescale with 8
-	
 }
 
-void IRLeftInit(void)
+void IRLeftFrontInit(void)
 {
-	ADMUX = 0x65;
+	ADMUX = 0x62;
 	ADCSRA = 0x83;
 }
 
@@ -74,16 +66,20 @@ void IRRightInit(void)
 	ADCSRA = 0x83;
 }
 
+void IRLeftBackInit(void)
+{
+	ADMUX = 0x65;
+	ADCSRA = 0x83;
+}
+
 void PhotoInit(void){
-		ADMUX = 0x67;		//Leftshift the output from the ad-converter (reads from ADCH) and sets A7 as input
-		ADCSRA = 0x83;		//Sets up the ad-converter to enable and prescale with 8
+	ADMUX = 0x67;		//Leftshift the output from the ad-converter (reads from ADCH) and sets A7 as input
+	ADCSRA = 0x83;		//Sets up the ad-converter to enable and prescale with 8
 }
 //Skickar startbit
 void TWIStart(void) {
 	TWCR = (1<<TWSTA)|(1<<TWINT)|(0<<TWIE)|(1<<TWEN); //Skickar startbit, sätter avbrottsflaggan, avaktiverar avbrott, aktiverar bussen
 	while (!(TWCR & (1<<TWINT))); //Väntar på att start-signalen ska skickas iväg ifall bussen är upptagen t.ex.
-	
-	//Behöver ej kolla 0x08 eller 0x10, startbit eller repeterad startbit
 }
 
 //Skickar stoppbit
@@ -92,133 +88,140 @@ void TWIStop(void) {
 }
 
 //Skickar adress + data
-void TWITransmitToComm(uint16_t data1, uint16_t data2, uint8_t data3, uint8_t data4, uint8_t data5, uint8_t data6, uint16_t data7, uint8_t data8) {
-	                   
-	TWIStart();
-
-	//Skicka SLA + W, adress 00 för att det är general call (till alla slaves)
-	TWISend(0x10);
+void TWITransmit(uint8_t address, uint8_t data1, uint8_t data2, uint8_t data3, uint8_t data4, uint8_t data5, uint16_t data6, uint8_t data7) {
 	
-	//Arbitration lost, borde dock aldrig hamna här inne?!
-	if ((TWSR & 0xF8) == 0x38) {
+	//Disable interrupts while sending data to bus
+	cli();
+	
+	//Send start condition
+	TWIStart();
+	
+	//Check if start is not sent
+	if (((TWSR & 0xF8) != 0x08) && ((TWSR & 0xF8) != 0x10))
+	{
 		TWIStop();
+		sei();
 		return;
 	}
-	//Om inte adress mottagen och inte "not ack" mottagen
-	if ((TWSR & 0xF8) == 0x20) {	
-		TWIStop();
-		return;
+	
+	//Send SLA+W 
+	TWISend(address);
+	
+	//Check if not right
+	if((TWSR & 0xF8) != 0x18) {
+		
+		//Check if arbitration is lost
+		if ((TWSR & 0xF8) == 0x38) {
+			TWIStop(); //release bus control
+			sei();
+			return;
+		}
+		
+		//"not ack" received
+		if ((TWSR & 0xF8) == 0x20) {
+			
+			TWIStop(); //release bus control
+			sei();
+			return;
+		}
 	}
 
 	//Skickar sensormodulens adress
 	TWISend(0x20);
 	
-	if ((TWSR & 0xF8) == 0x30) {
-		TWIStop();
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
 		return;
 	}
 	
 	//Send MSB data1
-	uint8_t newData = data1 >> 8;
-	TWISend(newData);
+	TWISend(data1);
 	
-	//Send LSB data1
-	newData = data1 & 0xFF;
-	TWISend(newData);
-	
-	//Send MSB data2
-	newData = data2 >> 8;
-	TWISend(newData);
-	
-	//Send LSB data2
-	newData = data2 & 0xFF;
-	TWISend(newData);
-
-	//Send data3
-	TWISend(data3);
-	
-	//Send data4
-	TWISend(data4);
-	//Send data5
-	TWISend(data5);
-	//Send data6
-	TWISend(data6);
-	
-	//Send MSB data7
-	newData = data7 >> 8;
-	TWISend(newData);
-	
-	//Send LSB data7
-	newData = data7 & 0xFF;
-	TWISend(newData);
-	
-	//Send LSB data8
-	TWISend(data8);
-	
-	TWIStop();
-}
-
-void TWITransmitToControl(uint16_t data1, uint16_t data2, uint8_t data3, uint8_t data4, uint8_t data5, uint8_t data6, uint16_t data7, uint8_t data8) {
-	
-	TWIStart();
-
-	//Skicka SLA + W, adress 00 för att det är general call (till alla slaves)
-	TWISend(0x40);
-	
-	//Arbitration lost, borde dock aldrig hamna här inne?!
-	if ((TWSR & 0xF8) == 0x38) {
-		TWIStop();
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
 		return;
 	}
-	//Om inte adress mottagen och inte "not ack" mottagen
-	if ((TWSR & 0xF8) == 0x20) {
-		TWIStop();
-		return;
-	}
-
-	//Skickar sensormodulens adress
-	TWISend(0x20);
-	
-	//Send MSB data1
-	uint8_t newData = data1 >> 8;
-	TWISend(newData);
 	
 	//Send LSB data1
-	newData = data1 & 0xFF;
-	TWISend(newData);
+	TWISend(data2);
 	
-	//Send MSB data2
-	newData = data2 >> 8;
-	TWISend(newData);
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		return;
+	}
 	
-	//Send LSB data2
-	newData = data2 & 0xFF;
-	TWISend(newData);
-
-	//Send data3
 	TWISend(data3);
 	
-	//Send data4
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		return;
+	}
+	
 	TWISend(data4);
-	//Send data5
+
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		return;
+	}
+	
+	//Send data3
 	TWISend(data5);
-	//Send data6
-	TWISend(data6);
+	
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		return;
+	}
 	
 	//Send MSB data7
-	newData = data7 >> 8;
+	uint8_t newData = data6 >> 8;
 	TWISend(newData);
+	
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		return;
+	}
 	
 	//Send LSB data7
-	newData = data7 & 0xFF;
+	newData = data6 & 0xFF;
 	TWISend(newData);
 	
-	//Send LSB data8
-	TWISend(data8);
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		return;
+	}
 	
+	//Send LSB data8
+	TWISend(data7);
+	
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		return;
+	}
+		
+	//Send stop condition
 	TWIStop();
+		
+	//Enable interrupts again
+	sei();
 }
-
 
 //Skickar data
 void TWISend(uint8_t data) {
@@ -229,92 +232,6 @@ void TWISend(uint8_t data) {
 	while (!(TWCR & (1<<TWINT))); //Väntar på ackbit
 }
 
-void readFromSensFront(void) {
-	
-	// send pulse to US-sensor two, back left
-	PORTB = (1<<PORTB3); // Sätter PA1 till hög under bestämd tid
-	_delay_us(40);
-	PORTB = (0<<PORTB3);// Sätter PA1 till låg och startar mätningen
-	
-	int i = 0;
-	
-	//wait for us-sensor to start measuring
-	while(!(PINA & (1<<PORTA2)))
-	{
-		i++;
-		if (i >10000){
-			return;
-		}
-	}
-
-	//Start counter
-	TCCR1B =(1<<CS10);
-	i = 0;
-	//wait for final value from us-sensor
-	while(PINA & (1<<PORTA2))
-	{
-		i++;
-		if (i > 66000)
-		{
-			return;
-		}
-	}
-
-	//Stops counter
-	TCCR1B = (0<<CS10);
-	
-	US_pre_sens_front_left = US_sens_front_left;
-	
-	//Read counter
-	US_sens_front_left = TCNT1;
-	
-	//reset counter
-	TCNT1 = 0x0;
-}
-
-void readFromSensBack(void) {
-	
-	// send pulse to US-sensor two, back left
-	PORTA = (1<<PORTA3); // Sätter PA1 till hög under bestämd tid
-	_delay_us(40);
-	PORTA = (0<<PORTA3);// Sätter PA1 till låg och startar mätningen
-	int i = 0;
-	//wait for us-sensor to start measuring
-	while(!(PINA & (1<<PORTA4)))
-	{
-		i++;
-		if (i >10000)
-		{
-			return;
-		}
-	}
-
-	//Start counter
-	TCCR1B =(1<<CS10);
-	
-	i = 0;
-	
-	//wait for final value from us-sensor
-	while(PINA & (1<<PORTA4))
-		{
-			i++;
-			if (i > 66000)
-			{
-				return;
-			}
-		}
-
-	//Stops counter
-	TCCR1B = (0<<CS10);
-	
-	US_pre_sens_back_left = US_sens_back_left;
-	
-	//Read counter
-	US_sens_back_left = TCNT1;
-	
-	//reset counter
-	TCNT1 = 0x0;
-}
 void readFromGyro(void)
 {
 	GyroInit();
@@ -327,15 +244,13 @@ void readFromGyro(void)
 	
 }
 
-void readFromIRDistance(void)
+void readFromIRFront(void)
 {
-	IRDistInit();
+	IRFrontInit();
 	
 	ADCSRA |= (1<<ADSC);// Start the conversion
 	
 	while( !(ADCSRA & (1<<ADIF)));
-	
-	IR_pre_sens_front = IR_sens_front;
 	
 	IR_sens_front = ADCH;
 	
@@ -343,15 +258,25 @@ void readFromIRDistance(void)
 
 void readFromIRLeft(void)
 {
-	IRLeftInit();
+	IRLeftFrontInit();
 	
 	ADCSRA |= (1<<ADSC);// Start the conversion
 	
 	while( !(ADCSRA & (1<<ADIF)));
 	
-	IR_pre_sens_left = IR_sens_left;
-	
 	IR_sens_left = ADCH;
+	
+}
+
+void readFromIRLeftBack(void)
+{
+	IRLeftBackInit();
+	
+	ADCSRA |= (1<<ADSC);// Start the conversion
+	
+	while( !(ADCSRA & (1<<ADIF)));
+	
+	IR_sens_left_back = ADCH;
 	
 }
 
@@ -362,8 +287,6 @@ void readFromIRRight(void)
 	ADCSRA |= (1<<ADSC);// Start the conversion
 	
 	while( !(ADCSRA & (1<<ADIF)));
-	
-	IR_pre_sens_right = IR_sens_right;
 	
 	IR_sens_right = ADCH;
 	
@@ -477,17 +400,12 @@ void read_IR(void){
 
 int main(void)
 {
-	//Init of sensorreading
-    DDRA = (1 << PORTA3); //PB3 and PA3 to out to US-sensors,
-	DDRB = (1 << PORTB3);
 	TWIInit();
 	
 	//GyroInit();
-	unsigned int loop= 0;
 	int per_fecht = 0;
     while (1) 
     {
-		
 		per_fecht++;
 		if (per_fecht > 50)
 		{
@@ -500,92 +418,15 @@ int main(void)
 			read_IR();	
 		}
 		
-		if(!loop)
-		{
-			//read front left
-			readFromSensFront();
-			loop = 1;
-		}
-		else
-		{
-			//read back left
-			readFromSensBack();
-			loop = 0;
-		}
-		
 		readFromGyro();
 		readFromIRLeft();
+		readFromIRLeftBack();
+		readFromIRRight();
+		readFromIRFront();
 		readFromPhoto();
 		
-		if (loop)
-		{
-			readFromIRRight();
-		}
-		else
-		{
-			readFromIRDistance();
-		}
-
-		uint16_t US_back_left = 0x0;
-		uint16_t US_front_left = 0x0;
-		//uint16_t US_right = 0x0;
-		uint8_t IR_front = 0x0;
-		uint8_t IR_right = 0x0;
-		uint8_t IR_left = 0x0;
-
-		//Back left, if difference between new and old is large send out old value again, else send new
-		if (abs(US_pre_sens_back_left-US_sens_back_left) > US_pre_sens_back_left*0.2) 
-		{
-			US_back_left = US_pre_sens_back_left;
-		} 
-		else
-		{
-			US_back_left = US_sens_back_left;
-		}
 		
-		//Front left, if difference between new and old is large send out old value again, lese send new
-		if (abs(US_pre_sens_front_left-US_sens_front_left) > US_pre_sens_front_left*0.2)
-		{
-			US_front_left = US_pre_sens_front_left;
-		}
-		else
-		{
-			US_front_left = US_sens_front_left;
-		}
-		
-		
-		//Front, if difference between new and old is large send out old value again, else send new
-		if (abs(IR_pre_sens_front - IR_sens_front) > IR_pre_sens_front*0.2)
-		{
-			IR_front = IR_pre_sens_front;
-		}
-		else
-		{
-			IR_front = IR_sens_front;
-		}
-		
-		//Right, if difference between new and old is large send out old value again, else send new
-		if (abs(IR_pre_sens_right - IR_sens_right) > IR_pre_sens_right*0.2)
-		{
-			IR_right = IR_pre_sens_right;
-		}
-		else
-		{
-			IR_right = IR_sens_right;
-		}
-		
-		//Left, if difference between new and old is large send out old value again, else send new
-		if (abs(IR_pre_sens_left - IR_sens_left) > IR_pre_sens_left*0.2)
-		{
-			IR_left = IR_pre_sens_left;
-		}
-		else
-		{
-			IR_left = IR_sens_left;
-		}
-		
-		TWITransmitToComm(US_front_left, US_back_left, IR_sens_left, IR_sens_right, IR_front, Gyro_sens, distance_photo, ir_detected);
-		TWITransmitToControl(US_front_left, US_back_left, IR_sens_left, IR_sens_right, IR_front, Gyro_sens, distance_photo, ir_detected);
-		
+		TWITransmit(0x10, IR_sens_left, IR_sens_left_back, IR_sens_right, IR_sens_front, Gyro_sens, distance_photo, ir_detected);
+		TWITransmit(0x40, IR_sens_left, IR_sens_left_back, IR_sens_right, IR_sens_front, Gyro_sens, distance_photo, ir_detected);
 	}
 }
