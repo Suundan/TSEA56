@@ -8,23 +8,23 @@
 #define F_CPU 1842000UL
 #include <avr/io.h>
 #include <util/twi.h>
-#include <avr/delay.h>
+#include <util/delay.h>
 #include <avr/interrupt.h>
 
-volatile unsigned int recieved_data = 0;
-volatile uint16_t US_sens_front_left = 0x0;
-volatile uint16_t US_sens_back_left = 0x0;
+//Sensor data
 volatile uint8_t IR_sens_left = 0x0;
+volatile uint8_t IR_sens_back_left = 0x0;
 volatile uint8_t IR_sens_right = 0x0;
-volatile uint8_t IR_sens_front = 0x0;
+volatile uint8_t IR_sens_front = 0x5;
 volatile uint8_t Gyro_sens = 0x0;
 volatile uint16_t Photo_distance = 0x0;
 volatile uint8_t IR_detector = 0x0;
-volatile int dataRecieved = 0;
-volatile ControlReady = 0x0;
-int falesafecounter = 0;
 
-volatile int wheelRad = 3;
+//Control module ready to receive
+volatile int ControlReady = 0x0;
+
+//OTHER
+const int wheelRad = 3;
 const int numOfWheelSectors = 4;
 
 volatile float refDist = 0;
@@ -41,19 +41,22 @@ volatile signed int colDir;
 
 //Interrupt from firefly
 ISR(USART_RXC_vect) {
+	
 	//Send data to buss
-	cli();
 	TWITransmitData(UDR);
-	sei();
+	
 }
 
 //Interrupt from TWI-bus
 ISR(TWI_vect){
 	
+	//Disable interrupts while receiving data to bus
 	cli();
 	
+	//If this module was addressed and "ack" was not sent
 	if(((TWSR & 0xF8) != 0x60 ) && ( (TWSR & 0xF8) != 0x68))
 	{
+		//release control of the bus, enable interrupts again and exit vector
 		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
 		sei();
 		return;
@@ -65,10 +68,17 @@ ISR(TWI_vect){
 	//Wait for data
 	while(!(TWCR & (1<<TWINT)));
 	
-	//Maybe check if status register is correct?
+	//If "ack" was not transmitted release bus control
+	if((TWSR & 0xF8) != 0x80 )
+	{
+		//release control of the bus, enable interrupts again and exit vector
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		sei();
+		return;
+	}
 	
-	//Call recieve function
-	if (TWDR == 0x20) 
+	//Call receive function
+	if (TWDR == 0x20)
 	{
 		TWIRecieveFromSens();
 	}
@@ -77,6 +87,7 @@ ISR(TWI_vect){
 		TWIRecieveFromControl();
 	}
 	
+	//Enable interrupts again
 	sei();
 }
 
@@ -110,8 +121,8 @@ void TWIInit(void) {
 	// Enable bus, ackbit and interrupt
 	TWCR = (1<<TWEN)|(1<<TWEA)|(1<<TWIE);
 	
-	//Slavadress (sista ska vara ett för att enabla general call)
-	//Kommmudul: 0x11
+	//Slavadress (sista ska vara 0 för att disablea general call)
+	//Kommmudul: 0x10
 	//Sensormodul: 0x21
 	//Styrmodul: 0x41
 	
@@ -164,12 +175,20 @@ void TWIStop(void) {
 //Send 8-bit data to bus
 void TWITransmitData(uint8_t data) {
 	
+	//Disable interrupts while sending data to bus
+	cli();
+	
 	//Send start condition
 	TWIStart();
 	
-	//Check if start is sent
-	if (!((TWSR & 0xF8) == 0x08 || (TWSR & 0xF8) == 0x10));
-	
+	//Check if start is not sent
+	if (((TWSR & 0xF8) != 0x08) && ((TWSR & 0xF8) != 0x10))
+	{
+		TWIStop();
+		sei();
+		return;
+	}
+		
 	//Send slave address
 	TWISend(0x40);
 	
@@ -179,14 +198,13 @@ void TWITransmitData(uint8_t data) {
 		//Check if arbitration is lost
 		if ((TWSR & 0xF8) == 0x38) {
 			TWIStop(); //release bus control
+			sei();
 			return;
 		}
 		
 		//"not ack" received
 		if ((TWSR & 0xF8) == 0x20) {
 			
-			//Eventuellt fatal error badness 1000000000
-			//Kanske inte behöver skicka ett stoppvilkor utan att det räcker att skicka ett repeated start och hantera det i styr...
 			TWIStop(); //release bus control
 			TWITransmitData(data); //Resend
 			return;
@@ -197,16 +215,29 @@ void TWITransmitData(uint8_t data) {
 	TWISend(0x10);
 	
 	//Data sent, "ack" not received
-	if ((TWSR & 0xF8) != 0x28); //handle "not ack" received something very wrong has happened
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		TWITransmitData(data); //Resend
+		return;	
+	}
 	
 	//send data
 	TWISend(data);
 	
 	//Data sent, "ack" not received
-	if ((TWSR & 0xF8) != 0x28); //handle "not ack" received something very wrong has happened
-	
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		TWITransmitData(data); //Resend
+		return;
+	}
+		
 	//Send stop condition
 	TWIStop();
+	
+	//Enable interrupts again
+	sei();
 }
 
 //Send the data
@@ -225,8 +256,11 @@ uint16_t Recieve16Data(void) {
 	//Wait for data
 	while(!(TWCR & (1<<TWINT)));
 	
-	// if "not ack" received, do something
-	if ((TWSR & 0xF8) != 0x90);
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		return 0;
+	}
 
 	//Save msb data to int
 	uint16_t data_16 = (TWDR << 8);
@@ -237,8 +271,11 @@ uint16_t Recieve16Data(void) {
 	//Wait for data
 	while(!(TWCR & (1<<TWINT)));
 	
-	// if "not ack" received, do something
-	if ((TWSR & 0xF8) != 0x90);
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		return 0;
+	}
 	
 	//Save lsb data to int
 	data_16 |= TWDR;
@@ -253,10 +290,14 @@ uint8_t Recieve8Data(void) {
 	
 	//Wait for data
 	while(!(TWCR & (1<<TWINT)));
-	
-	// if "not ack" received, do something
-	if ((TWSR & 0xF8) != 0x90);
 
+
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		return 0;
+	}
+	
 	return TWDR;
 }
 
@@ -264,16 +305,70 @@ uint8_t Recieve8Data(void) {
 void TWIRecieveFromSens(void) {
 	
 	//Get the values from the bus
-	US_sens_front_left = Recieve16Data();
-	US_sens_back_left = Recieve16Data();
 	IR_sens_left = Recieve8Data();
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+	IR_sens_back_left = Recieve8Data();
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
 	IR_sens_right = Recieve8Data();
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
 	IR_sens_front = Recieve8Data();
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
 	Gyro_sens = Recieve8Data();
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
 	Photo_distance = Recieve16Data();
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
 	IR_detector = Recieve8Data();
 	
-	//Ready to recieve stop condition
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+	//Ready to receive stop condition
 	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
 	
 	//Wait for stop condition
@@ -284,11 +379,18 @@ void TWIRecieveFromSens(void) {
 	
 }
 
-TWIRecieveFromControl()
+void TWIRecieveFromControl(void)
 {
 	ControlReady = Recieve8Data();
 	
-	//Ready to recieve stop condition
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+	//Ready to receive stop condition
 	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
 	
 	//Wait for stop condition
@@ -301,21 +403,13 @@ TWIRecieveFromControl()
 //send sensor data to PC
 void sendSensorData(void) {
 	bluetooth_transmit('s');
-	
-	bluetooth_transmit(US_sens_front_left >> 8);
-	bluetooth_transmit(US_sens_front_left & 0xFF);
-	
-	bluetooth_transmit(US_sens_back_left >> 8);
-	bluetooth_transmit(US_sens_back_left & 0xFF);
-	
 	bluetooth_transmit(IR_sens_left);
+	bluetooth_transmit(IR_sens_back_left);
 	bluetooth_transmit(IR_sens_right);
 	bluetooth_transmit(IR_sens_front);
 	bluetooth_transmit(Gyro_sens);
-
 	bluetooth_transmit(Photo_distance >> 8);
 	bluetooth_transmit(Photo_distance & 0xFF);
-	
 	bluetooth_transmit(IR_detector);
 }
 
@@ -393,7 +487,7 @@ void controlDecision(){
 	mapArray[roboPos[1]][roboPos[2]] = 'd';
 	
 	//If left sensor value is larger than 20 cm
-	if (US_sens_front_left > 0x085C)
+	if (IR_sens_left > 0x085C)
 	{
 		//Four-way intersection
 		if ((IR_sens_right > 0x085C) && (IR_sens_front > 0x085C))
@@ -543,7 +637,7 @@ void controlDecision(){
 	else if (IR_sens_right > 0x085C)
 	{
 		//Three-way intersection as in pic 4
-		if ((IR_sens_front > 0x085C) && (US_sens_front_left <= 0x085C))
+		if ((IR_sens_front > 0x085C) && (IR_sens_left <= 0x085C))
 		{
 			if (mapArray[roboPos[1]][roboPos[2]+1] != 'c')
 			{
@@ -569,7 +663,7 @@ void controlDecision(){
 		}
 	}
 	//Dead-end as in pic 7
-	else if ((IR_sens_front < 0x085C) && (IR_sens_right < 0x085C) && (US_sens_front_left < 0x085C))
+	else if ((IR_sens_front < 0x085C) && (IR_sens_right < 0x085C) && (IR_sens_left < 0x085C))
 	{
 		//Turn 180 degrees and go back to decision point
 		TWITransmitData('u');
@@ -585,7 +679,7 @@ void controlDecision(){
 
 void testControl(void)
 {
-	if (US_sens_front_left > 0x085C) {
+	if (IR_sens_left > 0x085C) {
 		TWITransmitData('s');
 		refDist = (float) Photo_distance;
 	}
@@ -596,7 +690,7 @@ void check_dist(){
 	float numOfWheelTurns = 0;
 	
 	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
-	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
+	traveledDistTot = 2*3.1416*wheelRad*numOfWheelTurns; // Total distance in cm
 	if (traveledDistTot - refDist > 40)
 	{
 		//Update map
@@ -623,7 +717,7 @@ void check_cross(){
 		TWITransmitData('p');
 		return;
 	}
-		
+	
 	if (IR_sens_right < 0x1c)
 	{
 		TWITransmitData('z');
@@ -643,13 +737,11 @@ void check_cross(){
 		while(ControlReady != 0xAA);
 		TWITransmitData('p');
 	}
-		
+	
 }
 
 int main(void)
 {
-	DDRA = 0xFF;
-
 	TWIInit();
 	init_bluetooth();
 	mapInit();
@@ -668,7 +760,7 @@ int main(void)
 			{
 				check_cross();
 				sendSensorData();
-			}		
+			}
 			
 		}
 		else
