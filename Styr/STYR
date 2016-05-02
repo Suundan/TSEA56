@@ -11,47 +11,64 @@
  #include <util/twi.h>
  #include <avr/interrupt.h>
  
- //uint8_t current_command = 01010011; //Börjar med S
- unsigned int test = 0;
+ //command from comm
+ volatile uint8_t kommData = 'S';
  
- volatile uint8_t kommData = 0b01010011;
- volatile uint16_t US_sens_front_left = 0x0;
- volatile uint16_t US_sens_back_left = 0x0;
- //volatile uint16_t US_sens_right = 0x0;
+ //Sensor data
  volatile uint8_t IR_sens_left = 0x0;
+ volatile uint8_t IR_sens_back_left = 0x0;
  volatile uint8_t  IR_sens_right = 0x0;
  volatile uint8_t IR_sens_front = 0x0;
  volatile uint8_t Gyro_sens = 0x0;
  volatile uint16_t Photo_distance= 0x0;
- volatile uint16_t ir_detected = 0x0;
+ volatile uint8_t ir_detected = 0x0;
+ 
+ volatile uint8_t ControlReady = 0xAA;
+ //Speed
  uint16_t speedPD = 0x0FF;
  uint16_t speed = 0x1FF;
  
-  //Avbrottsvektor
+  //Interrupt bus
   ISR(TWI_vect){
-	  
-	  //Rätt adress mottagen, ackbit skickad
-	  if ((TWSR & 0xF8) == 0x60 || (TWSR & 0xF8) == 0x70) {
+	
+	//Disable interrupts while receiving data to bus	
+	cli();
+	
+	//If this module was addressed and "ack" was not sent
+	if (((TWSR & 0xF8) != 0x60) && ((TWSR & 0xF8) != 0x68))
+	{
+		//release control of the bus, enable interrupts again and exit vector
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		sei();
+		return;
+	}
+	
+	//Ready to receive data
+	TWCR = (0<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	//Wait for data
+	while(!(TWCR & (1<<TWINT)));
 		  
-		  TWCR = (0<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
-		  
-		  while(!(TWCR & (1<<TWINT))); //Väntar på data
-		  
-		  //Data inte mottagen, ackbit inte skickad
-		  if (!((TWSR & 0xF8) == 0x80 || (TWSR & 0xF8) == 0x90)) {
-			  while(1){};
-		  }
-		  //Kommodulen skickar till oss
-		  if (TWDR == 0x10) {
-			  TWIRecieveFromCom();
-			  return;
-		  }
-		  
-		  if (TWDR == 0x20) {
-			  TWIRecieveFromSens();
-			  return;
-		  }
-	  }
+	//If "ack" was not transmitted release bus control
+	if ((TWSR & 0xF8) != 0x80)
+	{
+			//release control of the bus, enable interrupts again and exit vector
+			TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+			sei();
+			return;
+	}
+	
+	//Call receive functions
+	if (TWDR == 0x10) {
+		TWIRecieveFromCom();
+	}
+	else if(TWDR == 0x20) 
+	{
+		TWIRecieveFromSens();
+	}
+
+	//Enable interrupts
+	sei();
   }
   
   //Initierar bussen
@@ -62,16 +79,16 @@
 	  
 	  //Sätter SCL hastigheten
 	  TWSR = (0<<TWPS0)|(0<<TWPS1) ; //Sätter prescaler värdet till 1
-	  TWBR = 0x0C; //Sätter bit rate registry till 12
+	  TWBR = 0x00; //Sätter bit rate registry till 12
 	  
 	  TWCR = (1<<TWEN)|(1<<TWEA)|(1<<TWIE);
 	  
-	  //Slavadresser (sista ska vara ett för att enabla general call)
-	  //Kommmudul: 0x11
-	  //Sensormodul: 0x21
-	  //Styrmodul: 0x41
+	  //Slave addresses
+	  //Kommmudul: 0x10
+	  //Sensormodul: 0x20
+	  //Styrmodul: 0x40
 	  
-	  TWAR = 0x41;
+	  TWAR = 0x40;
   }
   
   void init_pwm()
@@ -94,54 +111,122 @@
 	    TCCR2 = (1<<WGM21)|(1<<WGM20)|(1<<COM21)|(1<<CS21)|(1<<CS20);
 	    DDRD |= (1<<PORTD7);
     }
+	
+void TWIStart(void) {
+	TWCR = (1<<TWSTA)|(1<<TWINT)|(0<<TWIE)|(1<<TWEN); //Skickar startbit, sätter avbrottsflaggan, avaktiverar avbrott, aktiverar bussen
+	while (!(TWCR & (1<<TWINT)));  //Väntar på att start-signalen ska skickas iväg ifall bussen är upptagen t.ex.
+}
+
+//Send stop condition
+void TWIStop(void) {
+	TWCR = (1<<TWSTO)|(1<<TWINT)|(1<<TWIE)|(1<<TWEN)|(1<<TWEA); //Skickar stoppbit, sätter avbrottsflaggan, aktiverar avbrott, aktiverar bussen, aktiverar ackflaggan
+}
+
+void TWISend(uint8_t data) {
+	TWDR = data; //Save data to register
+	TWCR = (0<<TWSTA)|(1<<TWINT)|(1<<TWEN); //Send data
+	while (!(TWCR & (1<<TWINT))); //Wait for "ack"-bit
+}
+
+//Send 8-bit data to bus
+void TWITransmitData(uint8_t data) {
+	
+	//Disable interrupts while sending data to bus
+	cli();
+
+	//Send start condition
+	TWIStart();
+
+	//Check if start is not sent
+	if (((TWSR & 0xF8) != 0x08) && ((TWSR & 0xF8) != 0x10))
+	{
+		TWIStop();
+		sei();
+		return;
+	}
+	
+	//Send slave address
+	TWISend(0x10);
+	
+	//Check if not right
+	if((TWSR & 0xF8) != 0x18) {
+		
+		//Check if arbitration is lost
+		if ((TWSR & 0xF8) == 0x38) {
+			TWIStop(); //release bus control
+			sei();
+			return;
+		}
+		
+		//"not ack" received
+		if ((TWSR & 0xF8) == 0x20) {
+			
+			TWIStop(); //release bus control
+			sei();
+			return;
+		}
+	}
+	
+	
+	//Send header, own address + info
+	TWISend(0x40);
+	
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		sei();
+		return;
+	}
+	
+	//send data
+	TWISend(data);
+	
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		sei();
+		return;
+	}
+	
+	//Send stop condition
+	TWIStop();
+	
+	//Enable interrupts
+	sei();
+	
+	ControlReady = 0xAA;
+}
   
  //Ta emot data från Kommodulen
  void TWIRecieveFromCom() {
  	
+	//Ready to receive new data
  	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+ 
+	//Waiting for data
+ 	while(!(TWCR & (1<<TWINT))); 
  	
- 	while(!(TWCR & (1<<TWINT))); //Vänta på data
- 	
- 	//Data inte mottagen, ackbit inte skickad
+ 	//Data not received, 'not ack' was sent
  	if ((TWSR & 0xF8) != 0x80) {
- 		while(1){};
+ 		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+ 		return;
  	}
  	
+	 //data received saved
  	kommData = TWDR;
  
  	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
  	
- 	while(!(TWCR & (1<<TWINT))); //Väntar på stoppbit
+	 //waiting for stop condition
+ 	while(!(TWCR & (1<<TWINT))); 
  	
+	 //Release bus control
  	TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
  }
  
 uint16_t Recieve16Data(void) {
-	 TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA); //Sätter avbrottsflaggan, aktiverar bussen, aktiverar ackflaggan
-	 
-	 while(!(TWCR & (1<<TWINT))); //Vänta på data
-	 
-	 //Data inte mottagen och ackbit inte mottagen
-	 if ((TWSR & 0xF8) != 0x90) {
-		 while(1){};
-	 }
-
-	 uint16_t data_16 = (TWDR << 8);
-	 
-	 TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA); //Sätter avbrottsflaggan, aktiverar bussen, aktiverar ackflaggan
-	 
-	 while(!(TWCR & (1<<TWINT))); //Vänta på data
-	 
-	 //Data inte mottagen och ackbit inte mottagen
-	 if ((TWSR & 0xF8) != 0x90) {
-		 while(1){};
-	 }
-	 
-	 data_16 |= TWDR;
-	 return data_16;
-}
-
-uint8_t Recieve8Data(void) {
 	
 	//Ready to receive next data
 	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
@@ -149,33 +234,126 @@ uint8_t Recieve8Data(void) {
 	//Wait for data
 	while(!(TWCR & (1<<TWINT)));
 	
-	// if "not ack" received, do something
-	if ((TWSR & 0xF8) != 0x90);
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		return 0;
+	}
 
+	//Save msb data to int
+	uint16_t data_16 = (TWDR << 8);
+	
+	//Ready to receive next data
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	//Wait for data
+	while(!(TWCR & (1<<TWINT)));
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		return 0;
+	}
+	
+	//Save lsb data to int
+	data_16 |= TWDR;
+	return data_16;
+}
+
+uint8_t Recieve8Data(void) {
+	
+	//Ready to receive next data
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		
+	//Wait for data
+	while(!(TWCR & (1<<TWINT)));
+
+
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		return 0;
+	}
+		
 	return TWDR;
 }
  
  void TWIRecieveFromSens(void) {
  
- 	US_sens_front_left = Recieve16Data();
-	US_sens_back_left = Recieve16Data();
+	//Get the values from the bus
+	
 	IR_sens_left = Recieve8Data();
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+	IR_sens_back_left = Recieve8Data();
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
 	IR_sens_right = Recieve8Data();
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
 	IR_sens_front = Recieve8Data();
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
 	Gyro_sens = Recieve8Data();
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
 	Photo_distance = Recieve16Data();
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
 	ir_detected = Recieve8Data();
-	 
- 	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
- 	
- 	while(!(TWCR & (1<<TWINT))); //Väntar på stoppbit
- 	
- 	//Om inte det är en stoppbit
- 	if ((TWSR & 0xF8) != 0xA0) {
- 		while(1){};
- 	}
- 	
- 	TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+	//Ready to receive stop condition
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	//Wait for stop condition
+	while(!(TWCR & (1<<TWINT)));
+	
+	//Release bus control
+	TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
  }
  
  void forward(unsigned int speed_right, unsigned int speed_left)
@@ -217,12 +395,14 @@ uint8_t Recieve8Data(void) {
 	 OCR1B = speed;
 	 
 	 uint16_t sum_velocity = 0x0;
-	 
-	 while(sum_velocity < 0xB00)
+ 
+	 while(sum_velocity < 0xBD0)
 	 {
-		sum_velocity += abs(Gyro_sens - 0xAB);
-		_delay_ms(6);
+		 uint8_t gyro = abs(Gyro_sens - 0xAB)/3;
+		 sum_velocity += gyro;
+		 _delay_ms(2);
 	 }
+	 stop();
 	 
 	 kommData = 'S';
  } 
@@ -237,11 +417,13 @@ void rotate_90_right(void){
  
  uint16_t sum_velocity = 0x0;
  
- while(sum_velocity < 0x900)
+ while(sum_velocity < 0xBD0)
  {
-	 sum_velocity += abs(Gyro_sens- 0xAB);
-	 _delay_ms(6);
+	 uint8_t gyro = abs(Gyro_sens - 0xAB)/3;
+	 sum_velocity += gyro;
+	 _delay_ms(2);
  }
+ stop();
  
  kommData = 'S';	
 }
@@ -287,18 +469,17 @@ void rotate_180(void){
   
  void pd_control(void){
 	   
-	   uint16_t sens_back_left;
-	   uint16_t sens_front_left;
+	   uint8_t sens_back_left;
+	   uint8_t sens_front_left;
 	   int k_p = 35;
-	   uint16_t p_term;
-	   uint16_t ref_value = 0x0370;
-	   uint16_t error = 0x0;
+	   uint8_t p_term;
+	   uint8_t ref_value = 0x32;
+	   uint8_t error = 0x0;
 	   
-	   uint16_t k_d = 45;
-	   uint16_t d_term;
+	   uint8_t k_d = 45;
+	   uint8_t d_term;
 	   
-	   uint16_t pd_term;
-	   
+	   uint8_t pd_term;
 	   
 	   PORTD |= (1<<PORTD0); // DIR_RIGHT Direction framåt
 	   PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
@@ -308,29 +489,29 @@ void rotate_180(void){
 	   while (1){
 		   if(kommData != 'p') return;
 		   //Update sensor values
-		   sens_front_left = US_sens_front_left;
-		   sens_back_left = US_sens_back_left;
+		   sens_front_left = IR_sens_left;
+		   sens_back_left = IR_sens_back_left * 1.1;
 		   
-		   if (sens_front_left > ref_value) {
+		   if (sens_front_left < ref_value) {
 			   //to far to the right
 			   //increase right speed
 			   
-			   error = sens_front_left - ref_value;
+			   error = ref_value - sens_front_left;
 			   
 			   //p-term:
-			   p_term = k_p * (error / 100);
+			   p_term = k_p * (error / 4);
 			   
 			   //d-term:
-			   if (sens_front_left > sens_back_left) {
+			   if (sens_front_left < sens_back_left) {
 				   //incline from left wall
 				   //i.e. increase right speed
-				   d_term = k_d * ((sens_front_left - sens_back_left) / 100);
+				   d_term = k_d * ((sens_back_left - sens_front_left) / 4);
 				   pd_term = p_term + d_term;
 				   
-				   }else{
+			   }else{
 				   //incline towards left wall
 				   //i.e. decrease right speed
-				   d_term = k_d * ((sens_back_left - sens_front_left) / 100);
+				   d_term = k_d * ((sens_front_left - sens_back_left) / 4);
 				   if ( d_term > p_term) d_term = p_term;
 				   pd_term = p_term - d_term;
 			   }
@@ -342,23 +523,23 @@ void rotate_180(void){
 			   } else {
 			   //to far to the left
 			   //increase left speed
-			   error = ref_value - sens_front_left;
+			   error = sens_front_left - ref_value;
 			   
 			   //p-term:
-			   p_term = k_p * (error / 100);
+			   p_term = k_p * (error / 4);
 			   
 			   //d-term:
-			   if (sens_front_left > sens_back_left) {
+			   if (sens_front_left < sens_back_left) {
 				   //incline away from left wall
 				   //i.e. decrease left speed
-				   d_term = k_d * ((sens_front_left - sens_back_left) / 100);
+				   d_term = k_d * (( sens_back_left - sens_front_left) / 4);
 				   if ( d_term > p_term) d_term = p_term;
 				   pd_term = p_term - d_term;
 				   
 				   }else{
 				   //incline towards left wall
 				   //i.e. increase left speed
-				   d_term = k_d * ((sens_back_left - sens_front_left) / 100);
+				   d_term = k_d * ( (sens_front_left - sens_back_left) / 4);
 				   pd_term = p_term + d_term;
 			   }
 			   
@@ -460,6 +641,11 @@ void rotate_180(void){
 			 break;
 			 case 'u':
 			 rotate_180();
+			 ControlReady = 0x0;
+			 while(ControlReady != 0xAA)
+			 {
+				 TWITransmitData(0xAA);
+			 }
 			 break;
 			 case 'l':
 			 lowerClaw();
@@ -478,15 +664,35 @@ void rotate_180(void){
 			 break;
 			 case 's':
 			 turnLeftCorridor();
+			 ControlReady = 0x0;
+			 while(ControlReady != 0xAA)
+			 {
+				 TWITransmitData(0xAA);
+			 }
 			 break;
 			 case 'k':
 			 turnRightCorridor();
+			 ControlReady = 0x0;
+			 while(ControlReady != 0xAA)
+			 {
+				 TWITransmitData(0xAA);
+			 }
 			 break;
 			 case 'b':
 			 shortForward(0x5);
+			 ControlReady = 0x0;
+			 while(ControlReady != 0xAA)
+			 {
+				 TWITransmitData(0xAA);
+			 }
 			 break;
 			 case 'z':
 			 shortForward(0x6);
+			 ControlReady = 0x0;
+			 while(ControlReady != 0xAA)
+			 {
+				 TWITransmitData(0xAA);
+			 }
 			 break;
 			 case 'j':
 			 straightForward();
@@ -502,7 +708,6 @@ void rotate_180(void){
  	init_pwm(); //Sätter grundinställningar för PWM
  	init_pwm_claw();
  	TWIInit(); //Initierar bussen
- 	
 	manual_mode();
-
+	
  }
