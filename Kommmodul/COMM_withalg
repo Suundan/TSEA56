@@ -76,7 +76,7 @@ ISR(TWI_vect){
 	PORTA = 0x00;
 }
 
-//bluetooth config
+//Bluetooth config
 void init_bluetooth()
 {
 	// Set TXD (port1) as out, 0b00000010
@@ -218,7 +218,7 @@ void TWISend(uint8_t data) {
 	while (!(TWCR & (1<<TWINT))); //Wait for "ack"-bit
 }
 
-//receive 16 bit data
+//Receive 16 bit data
 uint16_t Recieve16Data(void) {
 	
 	//Ready to receive next data
@@ -247,7 +247,7 @@ uint16_t Recieve16Data(void) {
 	return data_16;
 }
 
-//receive 8 bit data
+//Receive 8 bit data
 uint8_t Recieve8Data(void) {
 	
 	//Ready to receive next data
@@ -262,7 +262,7 @@ uint8_t Recieve8Data(void) {
 	return TWDR;
 }
 
-//receive sensor data
+//Receive sensor data
 void TWIRecieveFromSens(void) {
 	
 	//Get the values from the bus
@@ -289,7 +289,7 @@ void TWIRecieveFromSens(void) {
 	
 }
 
-//send sensor data to PC
+//Send sensor data to PC
 void sendSensorData(void) {
 	bluetooth_transmit('s');
 	bluetooth_transmit(US_sens_front_left >> 8);
@@ -310,7 +310,7 @@ void sendSensorData(void) {
 	bluetooth_transmit(IR_detector);
 }
 
-//send map to PC
+//Send map to PC
 void sendMap(char map[mapRows][mapCols]){
 	
 	char tmp = mapArray[roboPos[1]][roboPos[2]];
@@ -322,27 +322,20 @@ void sendMap(char map[mapRows][mapCols]){
 	for(int i = 0; i < mapRows; i++){
 		for (int j = 0; j < mapCols; j++)
 		{
-			if ((map[i][j] == 'd') | (map[i][j] == 'c'))
-			{
-				bluetooth_transmit('o');
-			}
-			else
-			{
-				bluetooth_transmit(map[i][j]);
-			}
+			bluetooth_transmit(map[i][j]);
 		}
 	}
 	
 	mapArray[roboPos[1]][roboPos[2]] = tmp;
 }
 
-//go forward, adjusting to wall
+//Go forward, adjusting to wall
 void goForward(){
 	//Go forward, adjust to wall
 	TWITransmitData('p');
 }
 
-//turns 90 degrees left
+//Turns 90 degrees left
 void turnLeft(){
 	//Turn left, 90 degrees
 	TWITransmitData('s');
@@ -360,7 +353,7 @@ void turnLeft(){
 	}
 }
 
-//turns 90 degrees right
+//Turns 90 degrees right
 void turnRight(){
 	//Turn right, 90 degrees
 	TWITransmitData('k');
@@ -378,7 +371,7 @@ void turnRight(){
 	}
 }
 
-//checks if robot has been to the left
+//Checks if robot has been to the left
 int leftIsFree(int coords[2]){
 	if (US_sens_front_left > 0x085C)
 	{
@@ -387,46 +380,6 @@ int leftIsFree(int coords[2]){
 			mapArray[coords] = 'o';
 			return 1;
 		}
-		//if (colDir == 0)
-		//{
-		//if (rowDir == 1)
-		//{
-		//if ((mapArray[roboPos[1]][roboPos[2]+1] != 'c') && (US_sens_front_left > 0x085C))
-		//{
-		//mapArray[roboPos[1]][roboPos[2]+1] = 'o';
-		//return 1;
-		//}
-		//else
-		//{
-		//mapArray[roboPos[1]][roboPos[2]+1] = 'w';
-		//return 0;
-		//}
-		//}
-		//else
-		//{
-		//if (mapArray[roboPos[1]][roboPos[2]-1] != 'c')
-		//{
-		//return 1;
-		//}
-		//}
-		//}
-		//else
-		//{
-		//if (colDir == 1)
-		//{
-		//if (mapArray[roboPos[1]-1][roboPos[2]] != 'c')
-		//{
-		//return 1;
-		//}
-		//}
-		//else
-		//{
-		//if (mapArray[roboPos[1]+1][roboPos[2]] != 'c')
-		//{
-		//return 1;
-		//}
-		//}
-		//}
 	}
 	if (mapArray[coords] == 'u')
 	{
@@ -435,7 +388,7 @@ int leftIsFree(int coords[2]){
 	return 0;
 }
 
-//checks if robot has been to the front
+//Checks if robot has been to the front
 int frontIsFree(){
 	if (IR_sens_front > 0x085C)
 	{
@@ -450,45 +403,9 @@ int frontIsFree(){
 		mapArray[coords] = 'w';
 	}
 	return = 0;
-	//if (colDir == 0)
-	//{
-	//if (rowDir == 1)
-	//{
-	//if (mapArray[roboPos[1]+1][roboPos[2]] != 'c')
-	//{
-	//return 1;
-	//}
-	//}
-	//else
-	//{
-	//if (mapArray[roboPos[1]-1][roboPos[2]] != 'c')
-	//{
-	//return 1;
-	//}
-	//}
-	//}
-	//else
-	//{
-	//if (colDir == 1)
-	//{
-	//if (mapArray[roboPos[1]][roboPos[2]+1] != 'c')
-	//{
-	//return 1;
-	//}
-	//}
-	//else
-	//{
-	//if (mapArray[roboPos[1]][roboPos[2]-1] != 'c')
-	//{
-	//return 1;
-	//}
-	//}
-	//}
-	//
-	//return 0;
 }
 
-//checks if robot has been to the right
+//Checks if robot has been to the right
 int rightIsFree(int coords[2]){
 	if (IR_sens_right > 0x085C)
 	{
@@ -497,40 +414,6 @@ int rightIsFree(int coords[2]){
 			mapArray[coords] = 'o';
 			return 1;
 		}
-		//if (colDir == 0)
-		//{
-		//if (rowDir == 1)
-		//{
-		//if (mapArray[roboPos[1]][roboPos[2]-1] != 'c')
-		//{
-		//return 1;
-		//}
-		//}
-		//else
-		//{
-		//if (mapArray[roboPos[1]][roboPos[2]+1] != 'c')
-		//{
-		//return 1;
-		//}
-		//}
-		//}
-		//else
-		//{
-		//if (colDir == 1)
-		//{
-		//if (mapArray[roboPos[1]-1][roboPos[2]] != 'c')
-		//{
-		//return 1;
-		//}
-		//}
-		//else
-		//{
-		//if (mapArray[roboPos[1]+1][roboPos[2]] != 'c')
-		//{
-		//return 1;
-		//}
-		//}
-		//}
 	}
 	if (mapArray[coords] == 'u')
 	{
@@ -539,11 +422,12 @@ int rightIsFree(int coords[2]){
 	return 0;
 }
 
-//finds the coordinates adjacent to the YI-Bot
+//Finds the coordinates adjacent to the YI-Bot
 //in order: to the left of, front of, to the right of
 void findAdjCoords(int *leftCoords[2], int *frontCoords[2], int *rightCoords[2])
 {
 	//TODO check if locally defined pointers need to be freed
+	//TODO make sure this code works
 	if (rowDir == 1)
 	{
 		*leftCoords = {roboPos[1],roboPos[2]+1};
@@ -570,7 +454,119 @@ void findAdjCoords(int *leftCoords[2], int *frontCoords[2], int *rightCoords[2])
 	}
 }
 
-//megasuperduperbig control decision
+//"Floods" the map to find the closest decision point with open ('o') adjacent boxes
+void goTo(int coords[2])
+{
+	//char *floodMapPtr[15][15];
+	int floodMapFirstCol;
+	char floodMap[15][15];
+	int oCoords[2];
+	
+	//finds where to cut off the big map
+	for (int i = 1; i<16; i++)
+	{
+		for (int j = 1; j<16; j++)
+		{
+			if (mapArray[i][j] != 'u' || mapArray[i][j] != 'w')
+			{
+				floodMapFirstCol = j;
+				break;
+			}
+		}
+	}
+	
+	//makes the flooding-map as a copy of a part of the big map
+	for (int i = 1; i < 16; i++)
+	{
+		for (int j = floodMapFirstCol; j < floodMapFirstCol + 15; j++)
+		{
+			floodMap[i][j] =  mapArray[i][j];
+		}
+	}
+	
+	//floods map until an open intersection is found
+	int foundO = 0;
+	int floodingRound = 1;
+	map[roboPos] = 0;
+	
+	//flooding
+	while(!foundO)
+	{
+		for(int i = 0; i<15; i++)
+		{
+			for (int j = 0; j<15; j++)
+			{
+				//checks if box was flooded last round
+				if (map[i][j] == floodingRound - 1)
+				{
+					//floods adjacent boxes
+					if ((i+1 < 15) && (map[i+1][j] > floodingRound) && (map[i+1][j] < 97 /*97 because that's where the lower case letters begin in ASCII*/))
+					{
+						map[i+1][j] = floodingRound;
+					}
+					if ((i-1 > -1) && (map[i+1][j] > floodingRound) && (map[i-1][j] < 97))
+					{
+						map[i-1][j] = floodingRound;
+					}
+					if ((j+1 < 15) && (map[i][j+1] > floodingRound) && (map[i][j+1] < 97))
+					{
+						map[i][j+1] = floodingRound;
+					}
+					if ((j-1 > -1) && (map[i][j-1] > floodingRound) && (map[i][j-1] < 97))
+					{
+						map[i][j-1] = floodingRound;
+					}
+				}
+				else if (map[i][j] == 'o')
+				{
+					oCoords = map[i][j];
+					foundO = 1;
+				}
+				++floodingRound;
+			}
+		}
+	}
+	//decides route to found intersection
+	//findRouteToCoords(oCoords);
+	if (foundO)
+	{
+		int route[floodingRound][2];
+		route[floodingRound-1] = oCoords;
+		while(floodingRound > 1)
+		{
+			if ((route[floodingRound-1][1]+1 < 15) && (map[route[floodingRound-1][0]+1][route[floodingRound-1][1]] < floodingRound))
+			{
+				route[floodingRound-2] = map[route[floodingRound-1][0]+1][route[floodingRound-1][1]];
+			}
+			else if ((route[floodingRound-1][1]-1 > 0) && (map[route[floodingRound-1][0]-1][route[floodingRound-1][1]] < floodingRound))
+			{
+				route[floodingRound-2] = map[route[floodingRound-1][0]-1][route[floodingRound-1][1]];
+			}
+			else if ((route[floodingRound-1][0]+1 < 15) && (map[route[floodingRound-1][0]][route[floodingRound-1][1]+1] < floodingRound))
+			{
+				route[floodingRound-2] = map[route[floodingRound-1][0]][route[floodingRound-1][1]+1];
+			}
+			else if ((route[floodingRound-1][0]-1 > 0) && (map[route[floodingRound-1][0]][route[floodingRound-1][1]-1] < floodingRound))
+			{
+				route[floodingRound-2] = map[route[floodingRound-1][0]][route[floodingRound-1][1]-1];
+			}
+			else
+			{
+				//If we end up here, something fucked up happened, lol.
+			}
+			--floodingRound;
+		}
+	}
+	//TODO take robot to found point via decided route
+	for (int i = 0; i < (sizeof(route) / sizeof(route[0]); i++)
+	{
+		sendMap();
+		sendSensorData();
+		
+	}
+}
+
+//Decision maker in an intersection or a turn
 void controlDecision(){
 	//Update map, this is a decision node
 	TWITransmitData('b');
@@ -588,7 +584,6 @@ void controlDecision(){
 	{
 		turnLeft();
 		goForward();
-
 	}
 	else if (frontFree)
 	{
@@ -602,226 +597,14 @@ void controlDecision(){
 	else
 	{
 		TWITransmitData('S');
+		//int goToCoords[2] = findClosestOpenIntersect();
+		//goTo(goToCoords);
 	}
 	mapArray[roboPos] = 'c';
-	
-	////If left sensor value is larger than 20 cm
-	//if (leftFree)
-	//{
-	////Four-way intersection
-	//if ((rightFree) && (frontFree))
-	//{
-	////Turn left if uncharted
-	////Direction: up or down
-	//if (colDir == 0)
-	//{
-	//if (mapArray[roboPos[1]][roboPos[2]+rowDir] != 'c')
-	//{
-	//turnLeft();
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//}
-	//else if (mapArray[roboPos[1]+rowDir][roboPos[2]] != 'c')
-	//{
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//}
-	//else
-	//{
-	//turnRight();
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//}
-	//}
-	////Direction: left or right
-	//else //if (rowDir == 0)
-	//{
-	//if (mapArray[roboPos[1]-colDir][roboPos[2]] != 'c')
-	//{
-	//turnLeft();
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//}
-	//else if (mapArray[roboPos[1]][roboPos[2]+colDir] != 'c')
-	//{
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//}
-	//else
-	//{
-	//turnRight();
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//}
-	//}
-	//
-	////Update map
-	////Intersection as in pic 6
-	//if (rowDir == 1)
-	//{
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'c';
-	//mapArray[roboPos[1]][roboPos[2]-1] == 'o';
-	//mapArray[roboPos[1]+1][roboPos[2]] == 'o';
-	//mapArray[roboPos[1]][roboPos[2]+1] == 'o';
-	//}
-	////Intersection as in pic 9
-	//else if (rowDir == -1)
-	//{
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'o';
-	//mapArray[roboPos[1]][roboPos[2]-1] == 'o';
-	//mapArray[roboPos[1]+1][roboPos[2]] == 'c';
-	//mapArray[roboPos[1]][roboPos[2]+1] == 'o';
-	//}
-	////Intersection as in pic 8
-	//else if (colDir == 1)
-	//{
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'o';
-	//mapArray[roboPos[1]][roboPos[2]-1] == 'c';
-	//mapArray[roboPos[1]+1][roboPos[2]] == 'o';
-	//mapArray[roboPos[1]][roboPos[2]+1] == 'o';
-	//}
-	////Intersection as in pic 10
-	//else
-	//{
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'o';
-	//mapArray[roboPos[1]][roboPos[2]-1] == 'o';
-	//mapArray[roboPos[1]+1][roboPos[2]] == 'o';
-	//mapArray[roboPos[1]][roboPos[2]+1] == 'c';
-	//}
-	//}
-	//
-	////Three-way intersection as in pic 5
-	//else if ((IR_sens_front > 0x085C) && (IR_sens_right <= 0x085C))
-	//{
-	////Turn left if uncharted
-	//if (mapArray[roboPos[1]+1][roboPos[2]] != 'c')
-	//{
-	//turnLeft();
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//}
-	//else
-	//{
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//}
-	//
-	////Update map
-	//mapArray[roboPos[1]][roboPos[2]+1] == 'c';
-	//mapArray[roboPos[1]][roboPos[2]-1] == 'o';
-	//mapArray[roboPos[1]+1][roboPos[2]] == 'o';
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'w';
-	//}
-	////Three-way intersection as in pic 3
-	//else if ((IR_sens_right > 0x085C) && (IR_sens_front <= 0x085C))
-	//{
-	////Turn left if uncharted
-	//if (mapArray[roboPos[1]][roboPos[2]-1] != 'c')
-	//{
-	//turnLeft();
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//}
-	//else
-	//{
-	//turnRight();
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//}
-	//
-	////Update map
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'c';
-	//mapArray[roboPos[1]][roboPos[2]-1] == 'o';
-	//mapArray[roboPos[1]][roboPos[2]+1] == 'o';
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'w';
-	//
-	//}
-	////Corner, turn left as in pic 2
-	//else // (US_sens_ahead <= 0x085C & US_sens_right <= 0x085C)
-	//{
-	//turnLeft();
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//
-	////Update map
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'c';
-	//mapArray[roboPos[1]][roboPos[2]-1] == 'o';
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'w';
-	//mapArray[roboPos[1]][roboPos[2]+1] == 'w';
-	//}
-	//}
-	////If right sensor value is larger than 20 cm
-	//else if (rightIsFree())
-	//{
-	////Three-way intersection as in pic 4
-	//if (IR_sens_front > 0x085C)
-	//{
-	//if (mapArray[roboPos[1]][roboPos[2]+1] != 'c')
-	//{
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//}
-	//else
-	//{
-	//turnRight();
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//}
-	//
-	////Update map
-	//mapArray[roboPos[1]][roboPos[2]-1] == 'c';
-	//mapArray[roboPos[1]][roboPos[2]+1] == 'o';
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'o';
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'w';
-	//}
-	////Corner, turn right as in pic 1
-	//else // (US_sens_ahead <= 0x085C & US_sens_front_left <= 0x085C)
-	//{
-	//turnRight();
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//
-	////Update map
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'c';
-	//mapArray[roboPos[1]][roboPos[2]+1] == 'o';
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'w';
-	//mapArray[roboPos[1]][roboPos[2]-1] == 'w';
-	//}
-	//}
-	////Dead-end as in pic 7
-	//else if (IR_sens_front <= 0x085C)
-	//{
-	////Turn 180 degrees and go back to decision point
-	//TWITransmitData('u');
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//
-	////Update map
-	//mapArray[roboPos[1]][roboPos[2]] == 'c';
-	//mapArray[roboPos[1]-1][roboPos[2]] == 'w';
-	//mapArray[roboPos[1]][roboPos[2]-1] == 'w';
-	//mapArray[roboPos[1]][roboPos[2]+1] == 'w';
-	//}
-	//else if (frontIsFree())
-	//{
-	//refDist = (float) Photo_distance;
-	//goForward();
-	//}
-	//else
-	//{
-	//TWITransmitData('S');
-	//}
+	refDist = 0;
 }
 
-void testControl(void)
-{
-	if (IR_sens_left > 0x085C) {
-		TWITransmitData('s');
-		refDist = (float) Photo_distance;
-	}
-}
-
-//checks if map needs update
+//Checks if map needs update
 void check_dist(){
 	float numOfWheelTurns = 0;
 	
@@ -850,35 +633,6 @@ void check_dist(){
 	}
 }
 
-//checks if in a intersection
-void check_cross(){
-	if (IR_sens_left < 0x1c)
-	{
-		TWITransmitData('b');
-		_delay_ms(1000);
-		TWITransmitData('s');
-		_delay_ms(2000);
-		TWITransmitData('p');
-		return;
-	}
-	
-	if (IR_sens_right < 0x1c)
-	{
-		TWITransmitData('z');
-		_delay_ms(1000);
-		TWITransmitData('k');
-		_delay_ms(2000);
-		TWITransmitData('p');
-		return;
-	}
-
-	if (IR_sens_front > 0x82)
-	{
-		TWITransmitData('u');
-		_delay_ms(2000);
-		TWITransmitData('p');
-	}
-}
 
 int main(void)
 {
@@ -887,33 +641,27 @@ int main(void)
 	init_bluetooth();
 	mapInit();
 	
-	unsigned int pin = 2;
-	goForward();
-	
 	while (1)
 	{
+		sendSensorData();
+		sendMap();
 		//check if autonomous mode
 		if (!(PINB & (1<<PINB0)))
 		{
-			_delay_ms(100);
+			//_delay_ms(100);
 			TWITransmitData('p');
-			
-			while (1)
-			{
-				check_cross();
-			}
-			
+			check_dist();
+
 			if ((IR_sens_left > 0x085C) || (IR_sens_right > 0x085C))
 			{
+				TWITransmitData('S');
 				controlDecision();
 			}
-			
-			goForward();
 		}
+		//remote control-mode
 		else
 		{
-			sendSensorData();
-			_delay_ms(100);
+			//Nothing happens here
 		}
 	}
 }
