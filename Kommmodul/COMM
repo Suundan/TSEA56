@@ -16,35 +16,37 @@ volatile uint8_t IR_sens_left = 0x0;
 volatile uint8_t IR_sens_back_left = 0x0;
 volatile uint8_t IR_sens_right = 0x0;
 volatile uint8_t IR_sens_front = 0x5;
-volatile uint8_t Gyro_sens = 0x0;
+volatile uint16_t Gyro_sens = 0x0;
 volatile uint16_t Photo_distance = 0x0;
 volatile uint8_t IR_detector = 0x0;
 
 //Control module ready to receive
 volatile int ControlReady = 0x0;
 
-//OTHER
+//Wheel
 const int wheelRad = 3;
 const int numOfWheelSectors = 4;
 
+//Distance variables
 volatile float refDist = 0;
 volatile float traveledDistTot = 0;
 
-const int mapRows = 17;
-const int mapCols = 31;
-volatile char mapArray[17][31];
+//Map variables
+//static const int mapRows = 17;	//Number of rows
+//static const int mapCols = 31;	//Number of columns
+#define MAPROWS 17
+#define MAPCOLS 31
+volatile char mapArray[MAPROWS][MAPCOLS];	//The internal map
 
-volatile int roboPos[2];
+volatile int roboPos[2];		//Robot position
 
-volatile signed int rowDir;
-volatile signed int colDir;
+volatile signed int rowDir;		//Row direction
+volatile signed int colDir;		//Coloumn direction
 
 //Interrupt from firefly
 ISR(USART_RXC_vect) {
-	
 	//Send data to buss
 	TWITransmitData(UDR);
-	
 }
 
 //Interrupt from TWI-bus
@@ -62,7 +64,7 @@ ISR(TWI_vect){
 		return;
 	}
 	
-	//Ready to recieve data
+	//Ready to receive data
 	TWCR = (0<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
 	
 	//Wait for data
@@ -91,7 +93,7 @@ ISR(TWI_vect){
 	sei();
 }
 
-//bluetooth config
+//Bluetooth config
 void init_bluetooth()
 {
 	// Set TXD (port1) as out, 0b00000010
@@ -118,13 +120,13 @@ void TWIInit(void) {
 	TWSR = (0<<TWPS0)|(0<<TWPS1); //Prescaler value
 	TWBR = 0x00;  //Bit rate registry to 12
 	
-	// Enable bus, ackbit and interrupt
+	//Enable bus, ackbit and interrupt
 	TWCR = (1<<TWEN)|(1<<TWEA)|(1<<TWIE);
 	
-	//Slavadress (sista ska vara 0 för att disablea general call)
-	//Kommmudul: 0x10
-	//Sensormodul: 0x21
-	//Styrmodul: 0x41
+	//Slaveaddress (last bit sould be 0 to disable general call)
+	//Commmudule: 0x10
+	//Sensormodule: 0x21
+	//Styrmodule: 0x41
 	
 	//Set slave address
 	TWAR = 0x10;
@@ -132,44 +134,49 @@ void TWIInit(void) {
 
 //Map initializing
 void mapInit(void){
-	for(int i = 0; i < mapRows; i++){
-		for (int j = 0; j < mapCols; j++)
+	
+	//Initializing all boxes to be uncharted ('u')
+	for(int i = 0; i < MAPROWS; i++){
+		for (int j = 0; j < MAPCOLS; j++)
 		{
 			mapArray[i][j] = 'u';
 		}
 	}
 	
+	//The starting point of robot
+	roboPos[0] = 17;
+	roboPos[1] = 16;
+	
+	//Updating surrounding boxes
 	mapArray[17][16] = 'o';
 	mapArray[16][16] = 'o';
 	mapArray[17][15] = 'w';
 	mapArray[17][17] = 'w';
 	
-	roboPos[1] = 17;
-	roboPos[2] = 16;
-	
+	//Sets the start direction of the robot
 	rowDir = -1;
 	colDir = 0;
 }
 
-//Transmit 8-bit data through bluetooth
+//Transmit 8-bit data through Bluetooth
 void bluetooth_transmit(uint8_t data)
 {
-	// Wait for empty buffer
+	//Wait for empty buffer
 	while ( !( UCSRA & (1<<UDRE)) );
 	
-	// Save data to buffer and send
+	//Save data to buffer and send
 	UDR = data;
 }
 
 //Send start condition
 void TWIStart(void) {
-	TWCR = (1<<TWSTA)|(1<<TWINT)|(0<<TWIE)|(1<<TWEN); //Skickar startbit, sätter avbrottsflaggan, avaktiverar avbrott, aktiverar bussen
-	while (!(TWCR & (1<<TWINT)));  //Väntar på att start-signalen ska skickas iväg ifall bussen är upptagen t.ex.
+	TWCR = (1<<TWSTA)|(1<<TWINT)|(0<<TWIE)|(1<<TWEN);
+	while (!(TWCR & (1<<TWINT)));
 }
 
 //Send stop condition
 void TWIStop(void) {
-	TWCR = (1<<TWSTO)|(1<<TWINT)|(1<<TWIE)|(1<<TWEN)|(1<<TWEA); //Skickar stoppbit, sätter avbrottsflaggan, aktiverar avbrott, aktiverar bussen, aktiverar ackflaggan
+	TWCR = (1<<TWSTO)|(1<<TWINT)|(1<<TWIE)|(1<<TWEN)|(1<<TWEA);
 }
 
 //Send 8-bit data to bus
@@ -188,7 +195,7 @@ void TWITransmitData(uint8_t data) {
 		sei();
 		return;
 	}
-		
+	
 	//Send slave address
 	TWISend(0x40);
 	
@@ -219,10 +226,10 @@ void TWITransmitData(uint8_t data) {
 	{
 		TWIStop(); //release bus control
 		TWITransmitData(data); //Resend
-		return;	
+		return;
 	}
 	
-	//send data
+	//Send data
 	TWISend(data);
 	
 	//Data sent, "ack" not received
@@ -232,7 +239,7 @@ void TWITransmitData(uint8_t data) {
 		TWITransmitData(data); //Resend
 		return;
 	}
-		
+	
 	//Send stop condition
 	TWIStop();
 	
@@ -247,7 +254,7 @@ void TWISend(uint8_t data) {
 	while (!(TWCR & (1<<TWINT))); //Wait for "ack"-bit
 }
 
-//receive 16 bit data
+//Receive 16 bit data
 uint16_t Recieve16Data(void) {
 	
 	//Ready to receive next data
@@ -282,7 +289,7 @@ uint16_t Recieve16Data(void) {
 	return data_16;
 }
 
-//receive 8 bit data
+//Receive 8 bit data
 uint8_t Recieve8Data(void) {
 	
 	//Ready to receive next data
@@ -291,8 +298,7 @@ uint8_t Recieve8Data(void) {
 	//Wait for data
 	while(!(TWCR & (1<<TWINT)));
 
-
-	// if "ack" was not sent
+	//If "ack" was not sent
 	if ((TWSR & 0xF8) != 0x80)
 	{
 		return 0;
@@ -301,13 +307,13 @@ uint8_t Recieve8Data(void) {
 	return TWDR;
 }
 
-//receive sensor data
+//Receive sensor data
 void TWIRecieveFromSens(void) {
 	
 	//Get the values from the bus
 	IR_sens_left = Recieve8Data();
 	
-	// if "ack" was not sent
+	//If "ack" was not sent
 	if ((TWSR & 0xF8) != 0x80)
 	{
 		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
@@ -316,7 +322,7 @@ void TWIRecieveFromSens(void) {
 	
 	IR_sens_back_left = Recieve8Data();
 	
-	// if "ack" was not sent
+	//If "ack" was not sent
 	if ((TWSR & 0xF8) != 0x80)
 	{
 		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
@@ -325,7 +331,7 @@ void TWIRecieveFromSens(void) {
 	
 	IR_sens_right = Recieve8Data();
 	
-	// if "ack" was not sent
+	//If "ack" was not sent
 	if ((TWSR & 0xF8) != 0x80)
 	{
 		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
@@ -334,16 +340,16 @@ void TWIRecieveFromSens(void) {
 	
 	IR_sens_front = Recieve8Data();
 	
-	// if "ack" was not sent
+	//If "ack" was not sent
 	if ((TWSR & 0xF8) != 0x80)
 	{
 		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
 		return;
 	}
 	
-	Gyro_sens = Recieve8Data();
+	Gyro_sens = Recieve16Data();
 	
-	// if "ack" was not sent
+	//If "ack" was not sent
 	if ((TWSR & 0xF8) != 0x80)
 	{
 		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
@@ -352,7 +358,7 @@ void TWIRecieveFromSens(void) {
 	
 	Photo_distance = Recieve16Data();
 	
-	// if "ack" was not sent
+	//If "ack" was not sent
 	if ((TWSR & 0xF8) != 0x80)
 	{
 		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
@@ -361,7 +367,7 @@ void TWIRecieveFromSens(void) {
 	
 	IR_detector = Recieve8Data();
 	
-	// if "ack" was not sent
+	//If "ack" was not sent
 	if ((TWSR & 0xF8) != 0x80)
 	{
 		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
@@ -379,6 +385,7 @@ void TWIRecieveFromSens(void) {
 	
 }
 
+//Receive data from control module
 void TWIRecieveFromControl(void)
 {
 	ControlReady = Recieve8Data();
@@ -400,55 +407,52 @@ void TWIRecieveFromControl(void)
 	TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
 }
 
-//send sensor data to PC
+//Send sensor data to PC
 void sendSensorData(void) {
 	bluetooth_transmit('s');
 	bluetooth_transmit(IR_sens_left);
 	bluetooth_transmit(IR_sens_back_left);
 	bluetooth_transmit(IR_sens_right);
 	bluetooth_transmit(IR_sens_front);
-	bluetooth_transmit(Gyro_sens);
+	bluetooth_transmit(Gyro_sens >> 8);
+	bluetooth_transmit(Gyro_sens & 0xFF);
 	bluetooth_transmit(Photo_distance >> 8);
 	bluetooth_transmit(Photo_distance & 0xFF);
 	bluetooth_transmit(IR_detector);
 }
 
-//send map to PC
-void sendMap(char map[mapRows][mapCols]){
+//Send map to PC
+void sendMap(char map[MAPROWS][MAPCOLS]){
 	
-	char tmp = mapArray[roboPos[1]][roboPos[2]];
+	char tmp = mapArray[roboPos[0]][roboPos[1]];
 	
-	mapArray[roboPos[1]][roboPos[2]] = 'p';
+	mapArray[roboPos[0]][roboPos[1]] = 'p';
 	
+	//Makes the PC ready to receive map-data
 	bluetooth_transmit('m');
 	
-	for(int i = 0; i < mapRows; i++){
-		for (int j = 0; j < mapCols; j++)
+	//Send every byte of map
+	for(int i = 0; i < MAPROWS; i++){
+		for (int j = 0; j < MAPCOLS; j++)
 		{
-			if ((map[i][j] == 'd') | (map[i][j] == 'c'))
-			{
-				bluetooth_transmit('o');
-			}
-			else
-			{
-				bluetooth_transmit(map[i][j]);
-			}
+			bluetooth_transmit(map[i][j]);
 		}
 	}
 	
-	mapArray[roboPos[1]][roboPos[2]] = tmp;
+	mapArray[roboPos[0]][roboPos[1]] = tmp;
 }
 
-//go forward, adjusting to wall
+//Go forward, adjusting to wall
 void goForward(){
 	//Go forward, adjust to wall
 	TWITransmitData('p');
 }
 
-//turns 90 degrees left
+//Turns 90 degrees left
 void turnLeft(){
 	//Turn left, 90 degrees
-	TWITransmitData('v');
+	TWITransmitData('s');
+	ControlReady = 0x0;
 	
 	//Update direction
 	if (rowDir != 0)
@@ -461,12 +465,15 @@ void turnLeft(){
 		rowDir = - colDir;
 		colDir = 0;
 	}
+	
+	while(ControlReady != 0xAA);
 }
 
-//turns 90 degrees right
+//Turns 90 degrees right
 void turnRight(){
-	//Turn right, 90 degrees
-	TWITransmitData('r');
+	
+	TWITransmitData('k');
+	ControlReady = 0x0;
 	
 	//Update direction
 	if (rowDir != 0)
@@ -479,265 +486,328 @@ void turnRight(){
 		rowDir = colDir;
 		colDir = 0;
 	}
+	
+	while(ControlReady != 0xAA);
 }
 
-//megasuperduperbig control decision
-void controlDecision(){
-	//Update map, this is a decision node
-	mapArray[roboPos[1]][roboPos[2]] = 'd';
+//Turns 180 degrees
+void rotate(void)
+{
+	TWITransmitData('u');
+	ControlReady = 0x0;
 	
-	//If left sensor value is larger than 20 cm
-	if (IR_sens_left > 0x085C)
+	//Update direction
+	if (rowDir != 0)
 	{
-		//Four-way intersection
-		if ((IR_sens_right > 0x085C) && (IR_sens_front > 0x085C))
-		{
-			//Turn left if uncharted
-			//Direction: up or down
-			if (colDir == 0)
-			{
-				if (mapArray[roboPos[1]][roboPos[2]+rowDir] != 'c')
-				{
-					turnLeft();
-					goLong();
-					refDist = (float) Photo_distance;
-					goForward();
-				}
-				else if (mapArray[roboPos[1]+rowDir][roboPos[2]] != 'c')
-				{
-					goLong();
-					refDist = (float) Photo_distance;
-					goForward();
-				}
-				else
-				{
-					turnRight();
-					goLong();
-					refDist = (float) Photo_distance;
-					goForward();
-				}
-			}
-			//Direction: left or right
-			else //if (rowDir == 0)
-			{
-				if (mapArray[roboPos[1]-colDir][roboPos[2]] != 'c')
-				{
-					turnLeft();
-					goLong();
-					refDist = (float) Photo_distance;
-					goForward();
-				}
-				else if (mapArray[roboPos[1]][roboPos[2]+colDir] != 'c')
-				{
-					goLong();
-					refDist = (float) Photo_distance;
-					goForward();
-				}
-				else
-				{
-					turnRight();
-					goLong();
-					refDist = (float) Photo_distance;
-					goForward();
-				}
-			}
-			
-			//Update map
-			//Intersection as in pic 6
-			if (rowDir == 1)
-			{
-				mapArray[roboPos[1]-1][roboPos[2]] == 'c';
-				mapArray[roboPos[1]][roboPos[2]-1] == 'o';
-				mapArray[roboPos[1]+1][roboPos[2]] == 'o';
-				mapArray[roboPos[1]][roboPos[2]+1] == 'o';
-			}
-			//Intersection as in pic 9
-			else if (rowDir == -1)
-			{
-				mapArray[roboPos[1]-1][roboPos[2]] == 'o';
-				mapArray[roboPos[1]][roboPos[2]-1] == 'o';
-				mapArray[roboPos[1]+1][roboPos[2]] == 'c';
-				mapArray[roboPos[1]][roboPos[2]+1] == 'o';
-			}
-			//Intersection as in pic 8
-			else if (colDir == 1)
-			{
-				mapArray[roboPos[1]-1][roboPos[2]] == 'o';
-				mapArray[roboPos[1]][roboPos[2]-1] == 'c';
-				mapArray[roboPos[1]+1][roboPos[2]] == 'o';
-				mapArray[roboPos[1]][roboPos[2]+1] == 'o';
-			}
-			//Intersection as in pic 10
-			else
-			{
-				mapArray[roboPos[1]-1][roboPos[2]] == 'o';
-				mapArray[roboPos[1]][roboPos[2]-1] == 'o';
-				mapArray[roboPos[1]+1][roboPos[2]] == 'o';
-				mapArray[roboPos[1]][roboPos[2]+1] == 'c';
-			}
-		}
-		
-		//Three-way intersection as in pic 5
-		else if ((IR_sens_front > 0x085C) && (IR_sens_right <= 0x085C))
-		{
-			//Turn left if uncharted
-			if (mapArray[roboPos[1]+1][roboPos[2]] != 'c')
-			{
-				//Turn Left Corridor
-				TWITransmitData('s');
-				refDist = (float) Photo_distance;
-				goForward();
-				_delay_ms(1000);
-				TWITransmitData('d');
-			}
-			else
-			{
-				goLong();
-				refDist = (float) Photo_distance;
-				goForward();
-			}
-			
-			//Update map
-			mapArray[roboPos[1]][roboPos[2]+1] == 'c';
-			mapArray[roboPos[1]][roboPos[2]-1] == 'o';
-			mapArray[roboPos[1]+1][roboPos[2]] == 'o';
-		}
-		//Three-way intersection as in pic 3
-		else if ((IR_sens_right > 0x085C) && (IR_sens_front <= 0x085C))
-		{
-			//Turn left if uncharted
-			if (mapArray[roboPos[1]][roboPos[2]-1] != 'c')
-			{
-				turnLeft();
-				goLong();
-				refDist = (float) Photo_distance;
-				goForward();
-			}
-			else
-			{
-				turnRight();
-				goLong();
-				refDist = (float) Photo_distance;
-				goForward();
-			}
-			
-		}
-		//Corner, turn left as in pic 2
-		else // (US_sens_ahead <= 0x085C & US_sens_right <= 0x085C)
-		{
-			goShort();
-			
-			turnLeft();
-			goLong();
-			refDist = (float) Photo_distance;
-			goForward();
-		}
-	}
-	//If right sensor value is larger than 20 cm
-	else if (IR_sens_right > 0x085C)
-	{
-		//Three-way intersection as in pic 4
-		if ((IR_sens_front > 0x085C) && (IR_sens_left <= 0x085C))
-		{
-			if (mapArray[roboPos[1]][roboPos[2]+1] != 'c')
-			{
-				goLong();
-				refDist = (float) Photo_distance;
-				goForward();
-			}
-			else
-			{
-				turnRight();
-				goLong();
-				refDist = (float) Photo_distance;
-				goForward();
-			}
-		}
-		//Corner, turn right as in pic 1
-		else // (US_sens_ahead <= 0x085C & US_sens_front_left <= 0x085C)
-		{
-			turnRight();
-			goLong();
-			refDist = (float) Photo_distance;
-			goForward();
-		}
-	}
-	//Dead-end as in pic 7
-	else if ((IR_sens_front < 0x085C) && (IR_sens_right < 0x085C) && (IR_sens_left < 0x085C))
-	{
-		//Turn 180 degrees and go back to decision point
-		TWITransmitData('u');
-		refDist = (float) Photo_distance;
-		goForward();
+		colDir = 0;
+		rowDir = -rowDir;
 	}
 	else
 	{
-		refDist = (float) Photo_distance;
+		rowDir = 0;
+		colDir = -colDir;
+	}
+	
+	while(ControlReady != 0xAA);
+}
+
+//Checks if robot has been to the left
+int leftIsFree(int coords[2]){
+	//If it's open to the left
+	if (IR_sens_left < 0x1C)
+	{
+		//If it's uncharted to the left, "open" the box
+		if (mapArray[coords[0]][coords[1]] == 'u')
+		{
+			mapArray[coords[0]][coords[1]] = 'o';
+			return 1;
+		}
+	}
+	//If it's not open to the left, then it's a wall
+	if (mapArray[coords[0]][coords[1]] == 'u')
+	{
+		mapArray[coords[0]][coords[1]] = 'w';
+	}
+	return 0;
+}
+
+//Checks if robot has been to the front
+int frontIsFree(int coords[2])
+{
+	//If it's open in the front
+	if (IR_sens_front < 0x23)
+	{
+		//If it's uncharted, make it open
+		if (mapArray[coords[0]][coords[1]] == 'u')
+		{
+			mapArray[coords[0]][coords[1]] = 'o';
+			return 1;
+		}
+	}
+	//If it's not open to the front, make it a wall
+	if (mapArray[coords[0]][coords[1]] == 'u')
+	{
+		mapArray[coords[0]][coords[1]] = 'w';
+	}
+	return 0;
+}
+
+//Checks if robot has been to the right
+int rightIsFree(int coords[2]){
+	//If it's open to the right
+	if (IR_sens_right < 0x1C)
+	{
+		//If it's uncharted, make it open
+		if (mapArray[coords[0]][coords[1]] == 'u')
+		{
+			mapArray[coords[0]][coords[1]] = 'o';
+			return 1;
+		}
+	}
+	//If not open to the right, make it a wall
+	if (mapArray[coords[0]][coords[1]] == 'u')
+	{
+		mapArray[coords[0]][coords[1]] = 'w';
+	}
+	return 0;
+}
+
+//Finds the coordinates adjacent to the YI-Bot
+//in order: to the left of, front of, to the right of
+void findAdjCoords(int *leftCoords[2], int *frontCoords[2], int *rightCoords[2])
+{
+	//TODO check if locally defined pointers need to be freed
+	//TODO make sure this code works
+	if (rowDir == 1)
+	{
+		*leftCoords[0] = roboPos[0];
+		*leftCoords[1] = roboPos[1]+1;
+		*frontCoords[0] = roboPos[0]+1;
+		*frontCoords[1] = roboPos[1];
+		*rightCoords[0] = roboPos[0];
+		*rightCoords[1] = roboPos[1]-1;
+	}
+	else if (rowDir == -1)
+	{
+		*leftCoords[0] = roboPos[0];
+		*leftCoords[1] = roboPos[1]-1;
+		*frontCoords[0] = roboPos[0]-1;
+		*frontCoords[1] = roboPos[1];
+		*rightCoords[0] = roboPos[0];
+		*rightCoords[1] = roboPos[1]+1;
+	}
+	else if (colDir == 1)
+	{
+		*leftCoords[0] = roboPos[0]-1;
+		*leftCoords[1] = roboPos[1];
+		*frontCoords[0] = roboPos[0];
+		*frontCoords[1] = roboPos[1]+1;
+		*rightCoords[0] = roboPos[0]+1;
+		*rightCoords[1] = roboPos[1];
+	}
+	else
+	{
+		*leftCoords[0] = roboPos[0]+1;
+		*leftCoords[1] = roboPos[1];
+		*frontCoords[0] = roboPos[0];
+		*frontCoords[1] = roboPos[1]-1;
+		*rightCoords[0] = roboPos[0]-1;
+		*rightCoords[1] = roboPos[1];
+	}
+}
+
+//"Floods" the map to find the closest decision point with open ('o') adjacent boxes
+void goTo(int coords[2])
+{
+	int floodMapFirstCol;
+	char floodMap[15][15];
+	int oCoords[2];
+	
+	//Finds where to cut off the big map
+	for (int i = 1; i<16; i++)
+	{
+		for (int j = 1; j<16; j++)
+		{
+			if (mapArray[i][j] != 'u' || mapArray[i][j] != 'w')
+			{
+				floodMapFirstCol = j;
+				break;
+			}
+		}
+	}
+	
+	//Makes the flooding-map as a copy of a part of the big map
+	for (int i = 1; i < 16; i++)
+	{
+		for (int j = floodMapFirstCol; j < floodMapFirstCol + 15; j++)
+		{
+			floodMap[i][j] =  mapArray[i][j];
+		}
+	}
+	
+	//Floods map until an open intersection is found
+	int foundO = 0;
+	int floodingRound = 1;
+	floodMap[roboPos[0]][roboPos[1]] = 0;
+	
+	//Flooding
+	while(!foundO)
+	{
+		for(int i = 0; i<15; i++)
+		{
+			for (int j = 0; j<15; j++)
+			{
+				//Checks if box was flooded last round
+				if (floodMap[i][j] == floodingRound - 1)
+				{
+					//Floods adjacent boxes
+					if ((i+1 < 15) && (floodMap[i+1][j] > floodingRound) && (floodMap[i+1][j] < 97 /*97 because that's where the lower case letters begin in ASCII*/))
+					{
+						floodMap[i+1][j] = floodingRound;
+					}
+					if ((i-1 > -1) && (floodMap[i+1][j] > floodingRound) && (floodMap[i-1][j] < 97))
+					{
+						floodMap[i-1][j] = floodingRound;
+					}
+					if ((j+1 < 15) && (floodMap[i][j+1] > floodingRound) && (floodMap[i][j+1] < 97))
+					{
+						floodMap[i][j+1] = floodingRound;
+					}
+					if ((j-1 > -1) && (floodMap[i][j-1] > floodingRound) && (floodMap[i][j-1] < 97))
+					{
+						floodMap[i][j-1] = floodingRound;
+					}
+				}
+				//Save the coordinates of the closest open space in oCoords
+				else if (floodMap[i][j] == 'o')
+				{
+					oCoords[0] = floodMap[i];
+					oCoords[1] = floodMap[j];
+					foundO = 1;
+				}
+				++floodingRound;
+			}
+		}
+	}
+	
+	//Decides route to found intersection
+	int route[floodingRound][2];
+	route[floodingRound-1][0] = oCoords[0];
+	route[floodingRound-1][1] = oCoords[1];
+	
+	if (foundO)
+	{
+		while(floodingRound > 1)
+		{
+			if ((route[floodingRound-1][1]+1 < 15) && (floodMap[route[floodingRound-1][0]+1][route[floodingRound-1][1]] < floodingRound))
+			{
+				route[floodingRound-2][0] = floodMap[route[floodingRound-1][0]+1];
+				route[floodingRound-2][1] = floodMap[route[floodingRound-1][1]];
+			}
+			else if ((route[floodingRound-1][1]-1 > 0) && (floodMap[route[floodingRound-1][0]-1][route[floodingRound-1][1]] < floodingRound))
+			{
+				route[floodingRound-2][0] = floodMap[route[floodingRound-1][0]-1];
+				route[floodingRound-2][1] = floodMap[route[floodingRound-1][1]];
+			}
+			else if ((route[floodingRound-1][0]+1 < 15) && (floodMap[route[floodingRound-1][0]][route[floodingRound-1][1]+1] < floodingRound))
+			{
+				route[floodingRound-2][0] = floodMap[route[floodingRound-1][0]];
+				route[floodingRound-2][1] = floodMap[route[floodingRound-1][1]+1];
+			}
+			else if ((route[floodingRound-1][0]-1 > 0) && (floodMap[route[floodingRound-1][0]][route[floodingRound-1][1]-1] < floodingRound))
+			{
+				route[floodingRound-2][0] = floodMap[route[floodingRound-1][0]];
+				route[floodingRound-2][1] = floodMap[route[floodingRound-1][1]-1];
+			}
+			else
+			{
+				//If we end up here, something fucked up happened, lol.
+			}
+			--floodingRound;
+		}
+	}
+	//TODO take robot to found point via decided route
+	for (int i = 0; i < (sizeof(route) / sizeof(route[0])); i++)
+	{
+		sendMap(mapArray);
+		sendSensorData();
+	}
+}
+
+//Decision maker in an intersection or a turn
+void controlDecision(){
+	
+	TWITransmitData('b');
+	ControlReady = 0x0;
+	
+	//Update map, this is a decision node
+	mapArray[roboPos[0]][roboPos[1]] = 'd';
+	int tmpLeftCoords[2];
+	int tmpFrontCoords[2];
+	int tmpRightCoords[2];
+	findAdjCoords(&tmpLeftCoords, &tmpFrontCoords, &tmpRightCoords);
+	
+	int leftFree = leftIsFree(tmpLeftCoords);
+	int rightFree = rightIsFree(tmpRightCoords);
+	int frontFree = frontIsFree(tmpFrontCoords);
+	
+	while(ControlReady != 0xAA);
+	
+	if (leftFree )
+	{
+		turnLeft();
 		goForward();
 	}
-}
-
-void testControl(void)
-{
-	if (IR_sens_left > 0x085C) {
-		TWITransmitData('s');
-		refDist = (float) Photo_distance;
-	}
-}
-
-//checks if map needs update
-void check_dist(){
-	float numOfWheelTurns = 0;
-	
-	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
-	traveledDistTot = 2*3.1416*wheelRad*numOfWheelTurns; // Total distance in cm
-	if (traveledDistTot - refDist > 40)
-	{
-		//Update map
-		mapArray[roboPos[1]][roboPos[2]] = 'c';
-		
-		//Update robot position
-		roboPos[1] = roboPos[1] + colDir;
-		roboPos[2] = roboPos[2] + rowDir;
-		
-		refDist = traveledDistTot;
-	}
-}
-
-//checks if in a intersection
-void check_cross(){
-	if (IR_sens_left < 0x1c)
-	{
-		TWITransmitData('b');
-		ControlReady = 0x0;
-		while(ControlReady != 0xAA);
-		TWITransmitData('s');
-		ControlReady = 0x0;
-		while(ControlReady != 0xAA);
-		TWITransmitData('p');
-		return;
-	}
-	
-	if (IR_sens_right < 0x1c)
+	else if (frontFree)
 	{
 		TWITransmitData('z');
 		ControlReady = 0x0;
 		while(ControlReady != 0xAA);
-		TWITransmitData('k');
-		ControlReady = 0x0;
-		while(ControlReady != 0xAA);
-		TWITransmitData('p');
-		return;
+		goForward();
 	}
-	
-	if (IR_sens_front > 0x82)
+	else if (rightFree)
 	{
-		TWITransmitData('u');
-		ControlReady = 0x0;
-		while(ControlReady != 0xAA);
-		TWITransmitData('p');
+		turnRight();
+		goForward();
 	}
+	else
+	{
+		TWITransmitData('S');
+		
+		//int goToCoords[2] = findClosestOpenIntersect();
+		//goTo(goToCoords);
+	}
+	mapArray[roboPos[0]][roboPos[1]] = 'c';
+	refDist = 0;
+}
+
+//Checks if map needs update
+void check_dist(){
+	float numOfWheelTurns = 0;
 	
+	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
+	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
+	if (traveledDistTot - refDist > 40)
+	{
+		//Update map
+		mapArray[roboPos[0]][roboPos[1]] = 'c';
+		if (colDir == 0)
+		{
+			mapArray[roboPos[0]][roboPos[1]+1] = 'w';
+			mapArray[roboPos[0]][roboPos[1]-1] = 'w';
+		}
+		else
+		{
+			mapArray[roboPos[0]+1][roboPos[1]] = 'w';
+			mapArray[roboPos[0]-1][roboPos[1]] = 'w';
+		}
+		
+		//Update robot position
+		roboPos[0] = roboPos[0] + colDir;
+		roboPos[1] = roboPos[1] + rowDir;
+		
+		refDist = traveledDistTot;
+	}
 }
 
 int main(void)
@@ -748,15 +818,32 @@ int main(void)
 	
 	while (1)
 	{
-		//check if autonomous mode
+		//Check if autonomous mode
 		if (!(PINB & (1<<PINB0))) {
 			
-			TWITransmitData('p'); // 300us
+			TWITransmitData('z');
+			ControlReady = 0x0;
+			while(ControlReady != 0xAA);
+			
+			TWITransmitData('p');
 			
 			while (1)
 			{
-				check_cross();
-				sendSensorData(); // 650 us
+				check_dist();
+				
+				if ((IR_sens_left < 0x1C) || (IR_sens_right < 0x1C))
+				{
+					TWITransmitData('S');
+					controlDecision();
+				}
+				else if (IR_sens_front > 0x50)
+				{
+					rotate();
+					goForward();
+				}
+				
+				sendSensorData();
+				sendMap(mapArray);
 			}
 			
 		}
@@ -765,6 +852,5 @@ int main(void)
 			sendSensorData();
 			_delay_ms(100);
 		}
-		
 	}
 }
