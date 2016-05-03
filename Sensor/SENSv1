@@ -16,11 +16,13 @@ uint8_t IR_sens_front = 0x1;
 uint8_t IR_sens_left = 0x0;
 uint8_t IR_sens_left_back = 0x0;
 uint8_t IR_sens_right = 0x0;
-uint8_t Gyro_sens = 0x0;
+uint16_t Gyro_sens = 0x0;
 uint16_t distance_photo = 0x00;
 unsigned int black_white_check= 0;
 uint16_t photo_value = 0x0;
 uint8_t ir_detected = 0x00;
+
+uint16_t spi_16data(uint8_t data);
 
 //Initierar bussen
 void TWIInit(void) {
@@ -41,6 +43,30 @@ void TWIInit(void) {
 	//Styrmodul: 0x40
 	
 	TWAR = 0x20;
+}
+
+void GyroInit(void) {
+	
+	// Initialize SPI Master Device (without interrupt)
+	uint16_t data = 0xFFFF;
+	// Set MOSI, SCK as Output
+	DDRB = (1 << PORTB5)|(1 << PORTB7)|(1 << PORTB4);
+	
+	// Enable SPI, Set as Master
+	//Prescaler: Fosc/16
+	SPCR = (1 << SPE)|(1 << MSTR)|(1 << SPR0);
+	
+	//activate the gyro (set Slave Select low)
+	PORTB = (0<<PORTB4);
+	
+	//initiate the A/D converter
+	while (data >> 15)
+	{
+		data = spi_16data(0x94);
+	}
+	
+	_delay_us(120);
+		
 }
 
 void IRFrontInit(void) {
@@ -82,7 +108,7 @@ void TWIStop(void) {
 }
 
 //Skickar adress + data
-void TWITransmit(uint8_t address, uint8_t data1, uint8_t data2, uint8_t data3, uint8_t data4, uint8_t data5, uint16_t data6, uint8_t data7) {
+void TWITransmit(uint8_t address, uint8_t data1, uint8_t data2, uint8_t data3, uint8_t data4, uint16_t data5, uint16_t data6, uint8_t data7) {
 	
 	//Disable interrupts while sending data to bus
 	cli();
@@ -168,8 +194,20 @@ void TWITransmit(uint8_t address, uint8_t data1, uint8_t data2, uint8_t data3, u
 		return;
 	}
 	
-	//Send data3
-	TWISend(data5);
+	//Send MSB data7
+	uint8_t newData = data5 >> 8;
+	TWISend(newData);
+	
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		return;
+	}
+	
+	//Send LSB data7
+	newData = data5 & 0xFF;
+	TWISend(newData);
 	
 	//Data sent, "ack" not received
 	if ((TWSR & 0xF8) != 0x28)
@@ -179,7 +217,7 @@ void TWITransmit(uint8_t address, uint8_t data1, uint8_t data2, uint8_t data3, u
 	}
 	
 	//Send MSB data7
-	uint8_t newData = data6 >> 8;
+	newData = data6 >> 8;
 	TWISend(newData);
 	
 	//Data sent, "ack" not received
@@ -303,6 +341,56 @@ void readFromPhoto(void)
 
 }
 
+uint16_t spi_16data(uint8_t data)
+{
+	uint16_t data_16 = 0x0000;
+	
+	//send instruction
+	SPDR = data;
+	while(!(SPSR & (1<<SPIF) ));
+	
+	//read lsb
+	SPDR = 0x00;
+	while(!(SPSR & (1<<SPIF) ));
+	uint8_t msb_spi = SPDR;
+
+	
+	//read msb
+	SPDR = 0x00;
+	while(!(SPSR & (1<<SPIF) ));
+	uint8_t lsb_spi = SPDR;
+
+	data_16 = (msb_spi<<8) + lsb_spi;
+
+	if(data_16>>15)
+	{
+		//Not ack, try again
+		data_16 = (spi_16data(data));
+		
+	}
+
+	return(data_16);
+}
+
+void read_gyro(void)
+{
+	//Function to send and receive data for both master and slave
+	uint16_t data = 0xFFFF;
+	
+	//start conversion
+	spi_16data(0x94);
+	
+	//polling and wait for conversion complete
+	data = spi_16data(0x80);
+	while(!(data && 0x2000))
+	{
+		data = spi_16data(0x80);
+	}
+
+	Gyro_sens = data & 0xFFF;
+	
+}
+
 uint16_t checkIRValue(void)
 {	
 	TCCR1B =(1<<CS10);
@@ -363,6 +451,10 @@ void read_IR(void){
 		ir_detected = 0xFF;
 		return;
 	}
+	else if (count < 500)
+	{
+		return;
+	}
 	else
 	{
 		TCCR1B =(1<<CS10);
@@ -383,6 +475,10 @@ void read_IR(void){
 int main(void)
 {
 	TWIInit();
+	GyroInit();
+	
+	//Set ADC Ports as input
+	DDRA = 0x0;
 	
 	int per_fecht = 0;
     while (1) 
@@ -396,19 +492,17 @@ int main(void)
 		
 		if(!(PINA & (1<<PINA1)))
 		{
-			read_IR();	
+			//read_IR();	
 		}
 		
-		//Gyro
+		read_gyro();
 		readFromIRLeft();
 		readFromIRLeftBack();
 		readFromIRRight();
 		readFromIRFront();
 		readFromPhoto();
 		
-		
 		TWITransmit(0x10, IR_sens_left, IR_sens_left_back, IR_sens_right, IR_sens_front, Gyro_sens, distance_photo, ir_detected);
 		TWITransmit(0x40, IR_sens_left, IR_sens_left_back, IR_sens_right, IR_sens_front, Gyro_sens, distance_photo, ir_detected);
-		_delay_ms(2);
 	}
 }
