@@ -394,12 +394,19 @@ void rotate_90_left(void){
 	OCR1A = speed;
 	OCR1B = speed;
 	
-	uint16_t sum_velocity = 0x0;
+	double sum_velocity = 0;
 	
-	while(sum_velocity < 0x2BA0)
+	while(sum_velocity < 1100)
 	{
-		uint8_t gyro = abs(Gyro_sens - 0x7EC)/16;
+		TCCR1B = (0<<CS10);
+		double time = TCNT1;
+		
+		double gyro = abs(Gyro_sens - 0x7EC)/8;
+		gyro = gyro * (time/10000);
 		sum_velocity += gyro;
+		
+		TCNT1 = 0x0;
+		TCCR1B =(1<<CS10);
 		_delay_ms(2);
 	}
 	
@@ -416,12 +423,19 @@ void rotate_90_right(void){
 	OCR1A = speed;
 	OCR1B = speed;
 	
-	uint16_t sum_velocity = 0x0;
+	double sum_velocity = 0;
 	
-	while(sum_velocity < 0x2BA0)
+	while(sum_velocity < 1100)
 	{
-		uint8_t gyro = abs(Gyro_sens - 0x7EC)/16;
+		TCCR1B = (0<<CS10);
+		double time = TCNT1;
+		
+		double gyro = abs(Gyro_sens - 0x7EC)/8;
+		gyro = gyro * (time/10000);
 		sum_velocity += gyro;
+		
+		TCNT1 = 0x0;
+		TCCR1B =(1<<CS10);
 		_delay_ms(2);
 	}
 	stop();
