@@ -486,12 +486,12 @@ void pd_control(void){
 	
 	uint8_t sens_back_left;
 	uint8_t sens_front_left;
-	int k_p = 35;
+	int k_p = 75;
 	uint8_t p_term;
 	uint8_t ref_value = 0x32;
 	uint8_t error = 0x0;
 	
-	uint8_t k_d = 45;
+	uint8_t k_d = 95;
 	uint8_t d_term;
 	
 	uint8_t pd_term;
