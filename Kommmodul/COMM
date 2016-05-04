@@ -96,18 +96,22 @@ ISR(TWI_vect){
 //Bluetooth config
 void init_bluetooth()
 {
-	// Set TXD (port1) as out, 0b00000010
+	//Set TXD (port1) as out, 0b00000010
 	DDRD = (1<<PORTD1);
 	
 	//Config of baudrate
 	UBRRH = 0x00; //(unsigned char)(ubrr>>8);
 	UBRRL = 0x00; //(unsigned char)ubrr;
 	
-	// Enable send, receive and interrupt
+	//Enable send, receive and interrupt
 	UCSRB = (1<<RXEN)|(1<<TXEN)|(1<<RXCIE);
 
-	// Data format: 8data, 1stop bit ligger som standard
+	//Data format: 8data, 1stop bit ligger som standard
 	UCSRC = (1<<URSEL)|(1<<UCSZ0)|(1<<UCSZ1);
+	
+	bluetooth_transmit('F');
+	bluetooth_transmit(',');
+	bluetooth_transmit('1');
 }
 
 //Bus config
@@ -144,14 +148,13 @@ void mapInit(void){
 	}
 	
 	//The starting point of robot
-	roboPos[0] = 17;
-	roboPos[1] = 16;
+	roboPos[0] = 16;
+	roboPos[1] = 15;
 	
 	//Updating surrounding boxes
-	mapArray[17][16] = 'o';
-	mapArray[16][16] = 'o';
-	mapArray[17][15] = 'w';
-	mapArray[17][17] = 'w';
+	mapArray[15][15] = 'o';
+	mapArray[16][14] = 'w';
+	mapArray[16][16] = 'w';
 	
 	//Sets the start direction of the robot
 	rowDir = -1;
@@ -161,6 +164,8 @@ void mapInit(void){
 //Transmit 8-bit data through Bluetooth
 void bluetooth_transmit(uint8_t data)
 {
+	//TODO Fastnar i config-mode, tar en minut innan den släpper
+	
 	//Wait for empty buffer
 	while ( !( UCSRA & (1<<UDRE)) );
 	
@@ -205,7 +210,7 @@ void TWITransmitData(uint8_t data) {
 		//Check if arbitration is lost
 		if ((TWSR & 0xF8) == 0x38) {
 			TWIStop(); //release bus control
-			sei();
+			TWITransmitData(data); //Resend
 			return;
 		}
 		
@@ -435,7 +440,8 @@ void sendMap(char map[MAPROWS][MAPCOLS]){
 	for(int i = 0; i < MAPROWS; i++){
 		for (int j = 0; j < MAPCOLS; j++)
 		{
-			bluetooth_transmit(map[i][j]);
+			uint8_t character = map[i][j];
+			bluetooth_transmit(character);
 		}
 	}
 	
@@ -520,6 +526,7 @@ int leftIsFree(int coords[2]){
 		if (mapArray[coords[0]][coords[1]] == 'u')
 		{
 			mapArray[coords[0]][coords[1]] = 'o';
+			sendMap(mapArray);
 			return 1;
 		}
 	}
@@ -527,6 +534,7 @@ int leftIsFree(int coords[2]){
 	if (mapArray[coords[0]][coords[1]] == 'u')
 	{
 		mapArray[coords[0]][coords[1]] = 'w';
+		sendMap(mapArray);
 	}
 	return 0;
 }
@@ -541,6 +549,7 @@ int frontIsFree(int coords[2])
 		if (mapArray[coords[0]][coords[1]] == 'u')
 		{
 			mapArray[coords[0]][coords[1]] = 'o';
+			sendMap(mapArray);
 			return 1;
 		}
 	}
@@ -548,6 +557,7 @@ int frontIsFree(int coords[2])
 	if (mapArray[coords[0]][coords[1]] == 'u')
 	{
 		mapArray[coords[0]][coords[1]] = 'w';
+		sendMap(mapArray);
 	}
 	return 0;
 }
@@ -561,6 +571,7 @@ int rightIsFree(int coords[2]){
 		if (mapArray[coords[0]][coords[1]] == 'u')
 		{
 			mapArray[coords[0]][coords[1]] = 'o';
+			sendMap(mapArray);
 			return 1;
 		}
 	}
@@ -568,6 +579,7 @@ int rightIsFree(int coords[2]){
 	if (mapArray[coords[0]][coords[1]] == 'u')
 	{
 		mapArray[coords[0]][coords[1]] = 'w';
+		sendMap(mapArray);
 	}
 	return 0;
 }
@@ -729,7 +741,7 @@ void goTo(int coords[2])
 	//TODO take robot to found point via decided route
 	for (int i = 0; i < (sizeof(route) / sizeof(route[0])); i++)
 	{
-		sendMap(mapArray);
+		//sendMap(mapArray);
 		sendSensorData();
 	}
 }
@@ -753,7 +765,7 @@ void controlDecision(){
 	
 	while(ControlReady != 0xAA);
 	
-	if (leftFree )
+	if (leftFree)
 	{
 		turnLeft();
 		goForward();
@@ -787,24 +799,27 @@ void check_dist(){
 	
 	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
 	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
-	if (traveledDistTot - refDist > 40)
+	if (traveledDistTot - refDist > 30)
 	{
 		//Update map
 		mapArray[roboPos[0]][roboPos[1]] = 'c';
+		
 		if (colDir == 0)
 		{
 			mapArray[roboPos[0]][roboPos[1]+1] = 'w';
 			mapArray[roboPos[0]][roboPos[1]-1] = 'w';
+			sendMap(mapArray);
 		}
 		else
 		{
 			mapArray[roboPos[0]+1][roboPos[1]] = 'w';
 			mapArray[roboPos[0]-1][roboPos[1]] = 'w';
+			sendMap(mapArray);
 		}
 		
 		//Update robot position
-		roboPos[0] = roboPos[0] + colDir;
-		roboPos[1] = roboPos[1] + rowDir;
+		roboPos[0] = roboPos[0] + rowDir;
+		roboPos[1] = roboPos[1] + colDir;
 		
 		refDist = traveledDistTot;
 	}
@@ -821,22 +836,26 @@ int main(void)
 		//Check if autonomous mode
 		if (!(PINB & (1<<PINB0))) {
 			
-			TWITransmitData('z');
-			ControlReady = 0x0;
-			while(ControlReady != 0xAA);
+			//z-command means go short forward, to enter the track
+			//TWITransmitData('z');
+			//ControlReady = 0x0;
+			//while(ControlReady != 0xAA);
 			
+			//p-command means go forward adjusting to wall
 			TWITransmitData('p');
 			
 			while (1)
 			{
 				check_dist();
 				
+				//Check if in a intersection
 				if ((IR_sens_left < 0x1C) || (IR_sens_right < 0x1C))
 				{
-					TWITransmitData('S');
+					sendMap(mapArray);
 					controlDecision();
 				}
-				else if (IR_sens_front > 0x50)
+				//Check if in a dead-end
+				else if (IR_sens_front > 0x60)
 				{
 					rotate();
 					goForward();
@@ -849,6 +868,10 @@ int main(void)
 		}
 		else
 		{
+			//_delay_ms(1000);
+			//TWITransmitData('s');
+			//ControlReady = 0x0;
+			//while(ControlReady != 0xAA);
 			sendSensorData();
 			_delay_ms(100);
 		}
