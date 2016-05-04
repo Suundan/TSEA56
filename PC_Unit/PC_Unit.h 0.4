@@ -66,12 +66,12 @@ namespace CppWinForm1 {
 	private: System::Windows::Forms::FlowLayoutPanel^  flowLayoutPanel1;
 	private: System::Windows::Forms::Label^  labelSensorReadings;
 	private: System::Windows::Forms::FlowLayoutPanel^  flowLayoutPanel2;
-	private: System::Windows::Forms::Label^  labelLeftUSFront;
-	private: System::Windows::Forms::TextBox^  textBoxLeftUSFront;
+	private: System::Windows::Forms::Label^  labelLeftIRFront;
+	private: System::Windows::Forms::TextBox^  textBoxLeftIRFront;
 
 	private: System::Windows::Forms::FlowLayoutPanel^  flowLayoutPanel3;
-	private: System::Windows::Forms::Label^  labelLeftUSRear;
-	private: System::Windows::Forms::TextBox^  textBoxLeftUSRear;
+	private: System::Windows::Forms::Label^  labelLeftIRRear;
+	private: System::Windows::Forms::TextBox^  textBoxLeftIRRear;
 
 	private: System::Windows::Forms::FlowLayoutPanel^  flowLayoutPanel6;
 	private: System::Windows::Forms::Label^  labelIRRight;
@@ -126,6 +126,9 @@ namespace CppWinForm1 {
 	private: System::Windows::Forms::CheckedListBox^  modeCheckedListBox;
 	private: System::Windows::Forms::PictureBox^  pictureBox1;
 	private: System::Windows::Forms::Panel^  panelSensRecieved;
+	private: System::Windows::Forms::Label^  labelDecisionPoint;
+	private: System::Windows::Forms::Label^  labelVisited;
+
 
 
 
@@ -160,20 +163,20 @@ namespace CppWinForm1 {
 			this->labelSensorReadings = (gcnew System::Windows::Forms::Label());
 			this->panelSensRecieved = (gcnew System::Windows::Forms::Panel());
 			this->flowLayoutPanel2 = (gcnew System::Windows::Forms::FlowLayoutPanel());
-			this->labelLeftUSFront = (gcnew System::Windows::Forms::Label());
-			this->textBoxLeftUSFront = (gcnew System::Windows::Forms::TextBox());
+			this->labelLeftIRFront = (gcnew System::Windows::Forms::Label());
+			this->textBoxLeftIRFront = (gcnew System::Windows::Forms::TextBox());
 			this->flowLayoutPanel3 = (gcnew System::Windows::Forms::FlowLayoutPanel());
-			this->labelLeftUSRear = (gcnew System::Windows::Forms::Label());
-			this->textBoxLeftUSRear = (gcnew System::Windows::Forms::TextBox());
-			this->flowLayoutPanel4 = (gcnew System::Windows::Forms::FlowLayoutPanel());
-			this->labelIRFront = (gcnew System::Windows::Forms::Label());
-			this->textBoxIRFront = (gcnew System::Windows::Forms::TextBox());
+			this->labelLeftIRRear = (gcnew System::Windows::Forms::Label());
+			this->textBoxLeftIRRear = (gcnew System::Windows::Forms::TextBox());
 			this->flowLayoutPanel8 = (gcnew System::Windows::Forms::FlowLayoutPanel());
 			this->labelIRLeft = (gcnew System::Windows::Forms::Label());
 			this->textBoxIRLeft = (gcnew System::Windows::Forms::TextBox());
 			this->flowLayoutPanel6 = (gcnew System::Windows::Forms::FlowLayoutPanel());
 			this->labelIRRight = (gcnew System::Windows::Forms::Label());
 			this->textBoxIRRight = (gcnew System::Windows::Forms::TextBox());
+			this->flowLayoutPanel4 = (gcnew System::Windows::Forms::FlowLayoutPanel());
+			this->labelIRFront = (gcnew System::Windows::Forms::Label());
+			this->textBoxIRFront = (gcnew System::Windows::Forms::TextBox());
 			this->flowLayoutPanel9 = (gcnew System::Windows::Forms::FlowLayoutPanel());
 			this->labelPhotoDistance = (gcnew System::Windows::Forms::Label());
 			this->textBoxPhotoDistance = (gcnew System::Windows::Forms::TextBox());
@@ -194,12 +197,14 @@ namespace CppWinForm1 {
 			this->textBox1 = (gcnew System::Windows::Forms::TextBox());
 			this->modeCheckedListBox = (gcnew System::Windows::Forms::CheckedListBox());
 			this->pictureBox1 = (gcnew System::Windows::Forms::PictureBox());
+			this->labelDecisionPoint = (gcnew System::Windows::Forms::Label());
+			this->labelVisited = (gcnew System::Windows::Forms::Label());
 			this->flowLayoutPanel1->SuspendLayout();
 			this->flowLayoutPanel2->SuspendLayout();
 			this->flowLayoutPanel3->SuspendLayout();
-			this->flowLayoutPanel4->SuspendLayout();
 			this->flowLayoutPanel8->SuspendLayout();
 			this->flowLayoutPanel6->SuspendLayout();
+			this->flowLayoutPanel4->SuspendLayout();
 			this->flowLayoutPanel9->SuspendLayout();
 			this->flowLayoutPanel5->SuspendLayout();
 			this->flowLayoutPanel7->SuspendLayout();
@@ -233,7 +238,7 @@ namespace CppWinForm1 {
 			this->disconnectBut->Name = L"disconnectBut";
 			this->disconnectBut->Size = System::Drawing::Size(113, 59);
 			this->disconnectBut->TabIndex = 1;
-			this->disconnectBut->Text = L"Disconnect from COM ports";
+			this->disconnectBut->Text = L"Close COM Ports";
 			this->disconnectBut->UseVisualStyleBackColor = false;
 			this->disconnectBut->Click += gcnew System::EventHandler(this, &PC_Unit::disconnectBut_Click);
 			// 
@@ -373,73 +378,137 @@ namespace CppWinForm1 {
 			// flowLayoutPanel2
 			// 
 			this->flowLayoutPanel2->BackColor = System::Drawing::Color::CadetBlue;
-			this->flowLayoutPanel2->Controls->Add(this->labelLeftUSFront);
-			this->flowLayoutPanel2->Controls->Add(this->textBoxLeftUSFront);
+			this->flowLayoutPanel2->Controls->Add(this->labelLeftIRFront);
+			this->flowLayoutPanel2->Controls->Add(this->textBoxLeftIRFront);
 			this->flowLayoutPanel2->Location = System::Drawing::Point(29, 35);
 			this->flowLayoutPanel2->Name = L"flowLayoutPanel2";
 			this->flowLayoutPanel2->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel2->TabIndex = 13;
 			// 
-			// labelLeftUSFront
+			// labelLeftIRFront
 			// 
-			this->labelLeftUSFront->AutoSize = true;
-			this->labelLeftUSFront->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+			this->labelLeftIRFront->AutoSize = true;
+			this->labelLeftIRFront->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
-			this->labelLeftUSFront->Location = System::Drawing::Point(3, 0);
-			this->labelLeftUSFront->Name = L"labelLeftUSFront";
-			this->labelLeftUSFront->Size = System::Drawing::Size(82, 50);
-			this->labelLeftUSFront->TabIndex = 0;
-			this->labelLeftUSFront->Text = L"Left US front:";
+			this->labelLeftIRFront->Location = System::Drawing::Point(3, 0);
+			this->labelLeftIRFront->Name = L"labelLeftIRFront";
+			this->labelLeftIRFront->Size = System::Drawing::Size(72, 50);
+			this->labelLeftIRFront->TabIndex = 0;
+			this->labelLeftIRFront->Text = L"Left IR front:";
 			// 
-			// textBoxLeftUSFront
+			// textBoxLeftIRFront
 			// 
-			this->textBoxLeftUSFront->BorderStyle = System::Windows::Forms::BorderStyle::None;
-			this->textBoxLeftUSFront->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+			this->textBoxLeftIRFront->BorderStyle = System::Windows::Forms::BorderStyle::None;
+			this->textBoxLeftIRFront->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
-			this->textBoxLeftUSFront->Location = System::Drawing::Point(3, 53);
-			this->textBoxLeftUSFront->Name = L"textBoxLeftUSFront";
-			this->textBoxLeftUSFront->ReadOnly = true;
-			this->textBoxLeftUSFront->Size = System::Drawing::Size(105, 34);
-			this->textBoxLeftUSFront->TabIndex = 1;
+			this->textBoxLeftIRFront->Location = System::Drawing::Point(3, 53);
+			this->textBoxLeftIRFront->Name = L"textBoxLeftIRFront";
+			this->textBoxLeftIRFront->ReadOnly = true;
+			this->textBoxLeftIRFront->Size = System::Drawing::Size(105, 34);
+			this->textBoxLeftIRFront->TabIndex = 1;
 			// 
 			// flowLayoutPanel3
 			// 
 			this->flowLayoutPanel3->BackColor = System::Drawing::Color::CadetBlue;
-			this->flowLayoutPanel3->Controls->Add(this->labelLeftUSRear);
-			this->flowLayoutPanel3->Controls->Add(this->textBoxLeftUSRear);
+			this->flowLayoutPanel3->Controls->Add(this->labelLeftIRRear);
+			this->flowLayoutPanel3->Controls->Add(this->textBoxLeftIRRear);
 			this->flowLayoutPanel3->Location = System::Drawing::Point(3, 113);
 			this->flowLayoutPanel3->Name = L"flowLayoutPanel3";
 			this->flowLayoutPanel3->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel3->TabIndex = 14;
 			// 
-			// labelLeftUSRear
+			// labelLeftIRRear
 			// 
-			this->labelLeftUSRear->AutoSize = true;
-			this->labelLeftUSRear->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+			this->labelLeftIRRear->AutoSize = true;
+			this->labelLeftIRRear->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
-			this->labelLeftUSRear->Location = System::Drawing::Point(3, 0);
-			this->labelLeftUSRear->Name = L"labelLeftUSRear";
-			this->labelLeftUSRear->Size = System::Drawing::Size(82, 50);
-			this->labelLeftUSRear->TabIndex = 0;
-			this->labelLeftUSRear->Text = L"Left US rear:";
+			this->labelLeftIRRear->Location = System::Drawing::Point(3, 0);
+			this->labelLeftIRRear->Name = L"labelLeftIRRear";
+			this->labelLeftIRRear->Size = System::Drawing::Size(72, 50);
+			this->labelLeftIRRear->TabIndex = 0;
+			this->labelLeftIRRear->Text = L"Left IR rear:";
 			// 
-			// textBoxLeftUSRear
+			// textBoxLeftIRRear
 			// 
-			this->textBoxLeftUSRear->BorderStyle = System::Windows::Forms::BorderStyle::None;
-			this->textBoxLeftUSRear->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+			this->textBoxLeftIRRear->BorderStyle = System::Windows::Forms::BorderStyle::None;
+			this->textBoxLeftIRRear->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
-			this->textBoxLeftUSRear->Location = System::Drawing::Point(3, 53);
-			this->textBoxLeftUSRear->Name = L"textBoxLeftUSRear";
-			this->textBoxLeftUSRear->ReadOnly = true;
-			this->textBoxLeftUSRear->Size = System::Drawing::Size(105, 34);
-			this->textBoxLeftUSRear->TabIndex = 1;
+			this->textBoxLeftIRRear->Location = System::Drawing::Point(3, 53);
+			this->textBoxLeftIRRear->Name = L"textBoxLeftIRRear";
+			this->textBoxLeftIRRear->ReadOnly = true;
+			this->textBoxLeftIRRear->Size = System::Drawing::Size(105, 34);
+			this->textBoxLeftIRRear->TabIndex = 1;
+			// 
+			// flowLayoutPanel8
+			// 
+			this->flowLayoutPanel8->BackColor = System::Drawing::Color::CadetBlue;
+			this->flowLayoutPanel8->Controls->Add(this->labelIRLeft);
+			this->flowLayoutPanel8->Controls->Add(this->textBoxIRLeft);
+			this->flowLayoutPanel8->Location = System::Drawing::Point(124, 113);
+			this->flowLayoutPanel8->Name = L"flowLayoutPanel8";
+			this->flowLayoutPanel8->Size = System::Drawing::Size(115, 72);
+			this->flowLayoutPanel8->TabIndex = 19;
+			// 
+			// labelIRLeft
+			// 
+			this->labelIRLeft->AutoSize = true;
+			this->labelIRLeft->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->labelIRLeft->Location = System::Drawing::Point(3, 0);
+			this->labelIRLeft->Name = L"labelIRLeft";
+			this->labelIRLeft->Size = System::Drawing::Size(73, 25);
+			this->labelIRLeft->TabIndex = 0;
+			this->labelIRLeft->Text = L"Left IR:";
+			// 
+			// textBoxIRLeft
+			// 
+			this->textBoxIRLeft->BorderStyle = System::Windows::Forms::BorderStyle::None;
+			this->textBoxIRLeft->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->textBoxIRLeft->Location = System::Drawing::Point(3, 28);
+			this->textBoxIRLeft->Name = L"textBoxIRLeft";
+			this->textBoxIRLeft->ReadOnly = true;
+			this->textBoxIRLeft->Size = System::Drawing::Size(105, 34);
+			this->textBoxIRLeft->TabIndex = 1;
+			// 
+			// flowLayoutPanel6
+			// 
+			this->flowLayoutPanel6->BackColor = System::Drawing::Color::CadetBlue;
+			this->flowLayoutPanel6->Controls->Add(this->labelIRRight);
+			this->flowLayoutPanel6->Controls->Add(this->textBoxIRRight);
+			this->flowLayoutPanel6->Location = System::Drawing::Point(3, 191);
+			this->flowLayoutPanel6->Name = L"flowLayoutPanel6";
+			this->flowLayoutPanel6->Size = System::Drawing::Size(115, 72);
+			this->flowLayoutPanel6->TabIndex = 17;
+			// 
+			// labelIRRight
+			// 
+			this->labelIRRight->AutoSize = true;
+			this->labelIRRight->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->labelIRRight->Location = System::Drawing::Point(3, 0);
+			this->labelIRRight->Name = L"labelIRRight";
+			this->labelIRRight->Size = System::Drawing::Size(85, 25);
+			this->labelIRRight->TabIndex = 0;
+			this->labelIRRight->Text = L"Right IR:";
+			// 
+			// textBoxIRRight
+			// 
+			this->textBoxIRRight->BorderStyle = System::Windows::Forms::BorderStyle::None;
+			this->textBoxIRRight->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->textBoxIRRight->Location = System::Drawing::Point(3, 28);
+			this->textBoxIRRight->Name = L"textBoxIRRight";
+			this->textBoxIRRight->ReadOnly = true;
+			this->textBoxIRRight->Size = System::Drawing::Size(105, 34);
+			this->textBoxIRRight->TabIndex = 1;
 			// 
 			// flowLayoutPanel4
 			// 
 			this->flowLayoutPanel4->BackColor = System::Drawing::Color::CadetBlue;
 			this->flowLayoutPanel4->Controls->Add(this->labelIRFront);
 			this->flowLayoutPanel4->Controls->Add(this->textBoxIRFront);
-			this->flowLayoutPanel4->Location = System::Drawing::Point(124, 113);
+			this->flowLayoutPanel4->Location = System::Drawing::Point(124, 191);
 			this->flowLayoutPanel4->Name = L"flowLayoutPanel4";
 			this->flowLayoutPanel4->Size = System::Drawing::Size(115, 72);
 			this->flowLayoutPanel4->TabIndex = 15;
@@ -465,70 +534,6 @@ namespace CppWinForm1 {
 			this->textBoxIRFront->ReadOnly = true;
 			this->textBoxIRFront->Size = System::Drawing::Size(105, 34);
 			this->textBoxIRFront->TabIndex = 1;
-			// 
-			// flowLayoutPanel8
-			// 
-			this->flowLayoutPanel8->BackColor = System::Drawing::Color::CadetBlue;
-			this->flowLayoutPanel8->Controls->Add(this->labelIRLeft);
-			this->flowLayoutPanel8->Controls->Add(this->textBoxIRLeft);
-			this->flowLayoutPanel8->Location = System::Drawing::Point(3, 191);
-			this->flowLayoutPanel8->Name = L"flowLayoutPanel8";
-			this->flowLayoutPanel8->Size = System::Drawing::Size(115, 72);
-			this->flowLayoutPanel8->TabIndex = 19;
-			// 
-			// labelIRLeft
-			// 
-			this->labelIRLeft->AutoSize = true;
-			this->labelIRLeft->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(0)));
-			this->labelIRLeft->Location = System::Drawing::Point(3, 0);
-			this->labelIRLeft->Name = L"labelIRLeft";
-			this->labelIRLeft->Size = System::Drawing::Size(95, 25);
-			this->labelIRLeft->TabIndex = 0;
-			this->labelIRLeft->Text = L"Left IR:";
-			// 
-			// textBoxIRLeft
-			// 
-			this->textBoxIRLeft->BorderStyle = System::Windows::Forms::BorderStyle::None;
-			this->textBoxIRLeft->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(0)));
-			this->textBoxIRLeft->Location = System::Drawing::Point(3, 28);
-			this->textBoxIRLeft->Name = L"textBoxIRLeft";
-			this->textBoxIRLeft->ReadOnly = true;
-			this->textBoxIRLeft->Size = System::Drawing::Size(105, 34);
-			this->textBoxIRLeft->TabIndex = 1;
-			// 
-			// flowLayoutPanel6
-			// 
-			this->flowLayoutPanel6->BackColor = System::Drawing::Color::CadetBlue;
-			this->flowLayoutPanel6->Controls->Add(this->labelIRRight);
-			this->flowLayoutPanel6->Controls->Add(this->textBoxIRRight);
-			this->flowLayoutPanel6->Location = System::Drawing::Point(124, 191);
-			this->flowLayoutPanel6->Name = L"flowLayoutPanel6";
-			this->flowLayoutPanel6->Size = System::Drawing::Size(115, 72);
-			this->flowLayoutPanel6->TabIndex = 17;
-			// 
-			// labelIRRight
-			// 
-			this->labelIRRight->AutoSize = true;
-			this->labelIRRight->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(0)));
-			this->labelIRRight->Location = System::Drawing::Point(3, 0);
-			this->labelIRRight->Name = L"labelIRRight";
-			this->labelIRRight->Size = System::Drawing::Size(99, 25);
-			this->labelIRRight->TabIndex = 0;
-			this->labelIRRight->Text = L"Right IR:";
-			// 
-			// textBoxIRRight
-			// 
-			this->textBoxIRRight->BorderStyle = System::Windows::Forms::BorderStyle::None;
-			this->textBoxIRRight->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 15, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(0)));
-			this->textBoxIRRight->Location = System::Drawing::Point(3, 28);
-			this->textBoxIRRight->Name = L"textBoxIRRight";
-			this->textBoxIRRight->ReadOnly = true;
-			this->textBoxIRRight->Size = System::Drawing::Size(105, 34);
-			this->textBoxIRRight->TabIndex = 1;
 			// 
 			// flowLayoutPanel9
 			// 
@@ -656,7 +661,7 @@ namespace CppWinForm1 {
 			// labelOpen
 			// 
 			this->labelOpen->AutoSize = true;
-			this->labelOpen->Location = System::Drawing::Point(677, 58);
+			this->labelOpen->Location = System::Drawing::Point(677, 78);
 			this->labelOpen->Name = L"labelOpen";
 			this->labelOpen->Size = System::Drawing::Size(45, 20);
 			this->labelOpen->TabIndex = 15;
@@ -686,7 +691,7 @@ namespace CppWinForm1 {
 			// labelWall
 			// 
 			this->labelWall->AutoSize = true;
-			this->labelWall->Location = System::Drawing::Point(677, 78);
+			this->labelWall->Location = System::Drawing::Point(677, 58);
 			this->labelWall->Name = L"labelWall";
 			this->labelWall->Size = System::Drawing::Size(35, 20);
 			this->labelWall->TabIndex = 18;
@@ -708,7 +713,7 @@ namespace CppWinForm1 {
 			// 
 			this->contextMenuStrip1->ImageScalingSize = System::Drawing::Size(24, 24);
 			this->contextMenuStrip1->Name = L"contextMenuStrip1";
-			this->contextMenuStrip1->Size = System::Drawing::Size(61, 4);
+			this->contextMenuStrip1->Size = System::Drawing::Size(74, 4);
 			// 
 			// textBox1
 			// 
@@ -729,6 +734,7 @@ namespace CppWinForm1 {
 			// 
 			this->modeCheckedListBox->BackColor = System::Drawing::Color::LightBlue;
 			this->modeCheckedListBox->BorderStyle = System::Windows::Forms::BorderStyle::None;
+			this->modeCheckedListBox->Enabled = false;
 			this->modeCheckedListBox->FormattingEnabled = true;
 			this->modeCheckedListBox->Items->AddRange(gcnew cli::array< System::Object^  >(2) { L"Remote control mode", L"Autonomous mode" });
 			this->modeCheckedListBox->Location = System::Drawing::Point(635, 310);
@@ -748,6 +754,26 @@ namespace CppWinForm1 {
 			this->pictureBox1->TabIndex = 24;
 			this->pictureBox1->TabStop = false;
 			// 
+			// labelDecisionPoint
+			// 
+			this->labelDecisionPoint->AutoSize = true;
+			this->labelDecisionPoint->Location = System::Drawing::Point(677, 138);
+			this->labelDecisionPoint->Name = L"labelDecisionPoint";
+			this->labelDecisionPoint->Size = System::Drawing::Size(106, 20);
+			this->labelDecisionPoint->TabIndex = 25;
+			this->labelDecisionPoint->Text = L"decision point";
+			this->labelDecisionPoint->Visible = false;
+			// 
+			// labelVisited
+			// 
+			this->labelVisited->AutoSize = true;
+			this->labelVisited->Location = System::Drawing::Point(677, 158);
+			this->labelVisited->Name = L"labelVisited";
+			this->labelVisited->Size = System::Drawing::Size(53, 20);
+			this->labelVisited->TabIndex = 26;
+			this->labelVisited->Text = L"visited";
+			this->labelVisited->Visible = false;
+			// 
 			// PC_Unit
 			// 
 			this->AcceptButton = this->openCOMBut;
@@ -756,6 +782,8 @@ namespace CppWinForm1 {
 			this->AutoSize = true;
 			this->BackColor = System::Drawing::Color::GhostWhite;
 			this->ClientSize = System::Drawing::Size(1025, 589);
+			this->Controls->Add(this->labelVisited);
+			this->Controls->Add(this->labelDecisionPoint);
 			this->Controls->Add(this->pictureBox1);
 			this->Controls->Add(this->modeCheckedListBox);
 			this->Controls->Add(this->textBox1);
@@ -792,12 +820,12 @@ namespace CppWinForm1 {
 			this->flowLayoutPanel2->PerformLayout();
 			this->flowLayoutPanel3->ResumeLayout(false);
 			this->flowLayoutPanel3->PerformLayout();
-			this->flowLayoutPanel4->ResumeLayout(false);
-			this->flowLayoutPanel4->PerformLayout();
 			this->flowLayoutPanel8->ResumeLayout(false);
 			this->flowLayoutPanel8->PerformLayout();
 			this->flowLayoutPanel6->ResumeLayout(false);
 			this->flowLayoutPanel6->PerformLayout();
+			this->flowLayoutPanel4->ResumeLayout(false);
+			this->flowLayoutPanel4->PerformLayout();
 			this->flowLayoutPanel9->ResumeLayout(false);
 			this->flowLayoutPanel9->PerformLayout();
 			this->flowLayoutPanel5->ResumeLayout(false);
@@ -837,7 +865,7 @@ namespace CppWinForm1 {
 		switch (type) {
 		case 'o':
 			mapBrush->Color = Color::Aquamarine;
-			//open
+			//open but uncharted
 			break;
 		case 'u':
 			mapBrush->Color = Color::GhostWhite;
@@ -854,6 +882,14 @@ namespace CppWinForm1 {
 		case 'p':
 			mapBrush->Color = Color::Salmon;
 			//position of robot
+			break;
+		case 'd':
+			mapBrush->Color = Color::Khaki;
+			//decision point
+			break;
+		case 'c':
+			mapBrush->Color = Color::MediumAquamarine;
+			//open and charted 
 			break;
 		default:
 			mapBrush->Color = Color::Magenta;
@@ -881,16 +917,22 @@ namespace CppWinForm1 {
 		paintMapRect('o', 3, 32);
 		paintMapRect('p', 4, 32);
 		paintMapRect('g', 5, 32);
+		paintMapRect('d', 6, 32);
+		paintMapRect('c', 7, 32);
 		this->labelUncharted->Visible = true;
 		this->labelWall->Visible = true;
 		this->labelOpen->Visible = true;
 		this->labelPosition->Visible = true;
 		this->labelGoal->Visible = true;
+		this->labelDecisionPoint->Visible = true;
+		this->labelVisited->Visible = true;
 		this->labelUncharted->BackColor = Color::LightBlue;
 		this->labelWall->BackColor = Color::LightBlue;
 		this->labelOpen->BackColor = Color::LightBlue;
 		this->labelPosition->BackColor = Color::LightBlue;
 		this->labelGoal->BackColor = Color::LightBlue;
+		this->labelDecisionPoint->BackColor = Color::LightBlue;
+		this->labelVisited->BackColor = Color::LightBlue;
 	}
 			 ///Sends a String to robot via Bluetooth
 	public: static void send(String ^s)
@@ -1162,16 +1204,16 @@ namespace CppWinForm1 {
 			 /// Reads the sensor data receieved in the order it is sent
 	private: void ReadSensor()
 	{
-		//receive order: front left us, back left us, right,  gyro, distance photo, goaldetect ir, aheadpointing ir, 
-		writeSensorData(this->textBoxLeftUSFront, Read16SP2());
-		writeSensorData(this->textBoxLeftUSRear, Read16SP2());
-		writeSensorData(this->textBoxIRLeft, serialPort2->ReadByte());
+		//receive order: front Left IR, back Left IR, right IR, front IR,  gyro, distance photo, goaldetect IR
+		writeSensorData(this->textBoxLeftIRFront, serialPort2->ReadByte());
+		writeSensorData(this->textBoxLeftIRRear, serialPort2->ReadByte());
+		//writeSensorData(this->textBoxIRLeft, serialPort2->ReadByte());
 		writeSensorData(this->textBoxIRRight, serialPort2->ReadByte());
 		writeSensorData(this->textBoxIRFront, serialPort2->ReadByte());
-		writeSensorData(this->textBoxGyro, serialPort2->ReadByte());
+		writeSensorData(this->textBoxGyro, Read16SP2());
 		writeSensorData(this->textBoxPhotoDistance, Read16SP2());
 		writeSensorData(this->textBoxGoalDetector, serialPort2->ReadByte());
-		
+
 		readHeader = true;
 	}
 			 ///When data is recieved via bluetooth, the first byte is read as a header char that determines what to do with the received data
@@ -1253,6 +1295,7 @@ namespace CppWinForm1 {
 	}
 			 ///... does nothing really
 	private: System::Void PC_Unit_FormClosing(System::Object^  sender, System::Windows::Forms::FormClosingEventArgs^  e) {
+		Sleep(1000);
 		if (serialPort1->IsOpen) serialPort1->Close();
 		if (serialPort2->IsOpen) serialPort2->Close();
 	}
