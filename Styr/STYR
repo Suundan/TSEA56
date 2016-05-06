@@ -319,7 +319,6 @@ void TWIRecieveFromSens(void) {
 	}
 	
 	Gyro_sens = Recieve16Data();
-	
 	// if "ack" was not sent
 	if ((TWSR & 0xF8) != 0x80)
 	{
@@ -335,6 +334,7 @@ void TWIRecieveFromSens(void) {
 		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
 		return;
 	}
+	
 	
 	ir_detected = Recieve8Data();
 	
@@ -608,17 +608,17 @@ void shortForward(uint16_t i)
 
 void turnLeftCorridor(void) {
 	rotate_90_left();
-	shortForward(0x6);
+	shortForward(0xB);
 }
 
 void turnRightCorridor(void) {
 	rotate_90_right();
-	shortForward(0x6);
+	shortForward(0xB);
 }
 
 void straightForward(void)
 {
-	shortForward(0x9);
+	shortForward(0x10);
 }
 
 void manual_mode(void){
@@ -694,7 +694,7 @@ void manual_mode(void){
 			}
 			break;
 			case 'b':
-			shortForward(0x5);
+			shortForward(0xA);
 			ControlReady = 0x0;
 			while(ControlReady != 0xAA)
 			{
@@ -702,7 +702,7 @@ void manual_mode(void){
 			}
 			break;
 			case 'z':
-			shortForward(0x6);
+			shortForward(0xB);
 			ControlReady = 0x0;
 			while(ControlReady != 0xAA)
 			{
