@@ -1,3 +1,4 @@
+
 /*
 * COMM.c
 *
@@ -47,6 +48,7 @@ volatile signed int rowDir;		//Row direction
 volatile signed int colDir;		//Coloumn direction
 
 volatile uint8_t test = 0x0;
+volatile int lastNode = 0;
 
 //Interrupt from firefly
 ISR(USART_RXC_vect) {
@@ -522,31 +524,41 @@ void deadEnd(void)
 {
 	TWITransmitData('u');
 	ControlReady = 0x0;
-	
-	//Update map
-	if (mapArray[roboPos[0]][roboPos[1]] != 'd')
+
+	float numOfWheelTurns = 0;
+	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
+	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
+
+	if (traveledDistTot - refDist > 25)
 	{
-		mapArray[roboPos[0]][roboPos[1]] = 'c';
+		//Update map
+		if (mapArray[roboPos[0]][roboPos[1]] != 'd')
+		{
+			mapArray[roboPos[0]][roboPos[1]] = 'c';
+		}
+		
+		if (colDir == 0)
+		{
+			if (mapArray[roboPos[0]][roboPos[1]+1] == 'u') mapArray[roboPos[0]][roboPos[1]+1] = 'w';
+			if (mapArray[roboPos[0]][roboPos[1]-1] == 'u') mapArray[roboPos[0]][roboPos[1]-1] = 'w';
+		}
+		else
+		{
+			if (mapArray[roboPos[0]+1][roboPos[1]] == 'u') mapArray[roboPos[0]+1][roboPos[1]] = 'w';
+			if (mapArray[roboPos[0]-1][roboPos[1]] == 'u') mapArray[roboPos[0]-1][roboPos[1]] = 'w';
+		}
+		
+		roboPos[0] = roboPos[0] + rowDir;
+		roboPos[1] = roboPos[1] + colDir;
 	}
 	
 	if (colDir == 0)
 	{
 		if (mapArray[roboPos[0]][roboPos[1]+1] == 'u') mapArray[roboPos[0]][roboPos[1]+1] = 'w';
 		if (mapArray[roboPos[0]][roboPos[1]-1] == 'u') mapArray[roboPos[0]][roboPos[1]-1] = 'w';
-	}
-	else
-	{
-		if (mapArray[roboPos[0]+1][roboPos[1]] == 'u') mapArray[roboPos[0]+1][roboPos[1]] = 'w';
-		if (mapArray[roboPos[0]-1][roboPos[1]] == 'u') mapArray[roboPos[0]-1][roboPos[1]] = 'w';
-	}
-	
-	roboPos[0] = roboPos[0] + rowDir;
-	roboPos[1] = roboPos[1] + colDir;
-	
-	if (colDir == 0)
-	{
-		if (mapArray[roboPos[0]][roboPos[1]+1] == 'u') mapArray[roboPos[0]][roboPos[1]+1] = 'w';
-		if (mapArray[roboPos[0]][roboPos[1]-1] == 'u') mapArray[roboPos[0]][roboPos[1]-1] = 'w';
+		if (mapArray[roboPos[0]+rowDir][roboPos[1]] == 'u') mapArray[roboPos[0]][roboPos[1]+colDir] = 'w';
+		if (mapArray[roboPos[0]+rowDir][roboPos[1]+1] == 'u') mapArray[roboPos[0]+1][roboPos[1]+colDir] = 'w';
+		if (mapArray[roboPos[0]+rowDir][roboPos[1]-1] == 'u') mapArray[roboPos[0]-1][roboPos[1]+colDir] = 'w';
 	}
 	else
 	{
@@ -561,10 +573,7 @@ void deadEnd(void)
 	colDir = -colDir;
 	
 	sendMap(mapArray);
-	test = 0x00;
-	while(test != 0x2B);
 	
-	float numOfWheelTurns = 0;
 	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
 	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
 	refDist = traveledDistTot-8;
@@ -820,30 +829,43 @@ void goTo(int coords[2])
 
 //Decision maker in an intersection or a turn
 void controlDecision(){
-	
-	TWITransmitData('b');
-	ControlReady = 0x0;
-	
-	//Update map
-	if (mapArray[roboPos[0]][roboPos[1]] != 'd')
+
+	float numOfWheelTurns = 0;
+	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
+	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
+
+	//check if we have not moved one distance
+	if(traveledDistTot - refDist > 15)
 	{
-		mapArray[roboPos[0]][roboPos[1]] = 'c';
-	}
-	
-	if (colDir == 0)
-	{
-		if (mapArray[roboPos[0]][roboPos[1]+1] == 'u') mapArray[roboPos[0]][roboPos[1]+1] = 'w';
-		if (mapArray[roboPos[0]][roboPos[1]-1] == 'u') mapArray[roboPos[0]][roboPos[1]-1] = 'w';
+		TWITransmitData('b');
+		ControlReady = 0x0;
+		
+		//Update map
+		if (mapArray[roboPos[0]][roboPos[1]] != 'd')
+		{
+			mapArray[roboPos[0]][roboPos[1]] = 'c';
+		}
+		
+		if (colDir == 0)
+		{
+			if (mapArray[roboPos[0]][roboPos[1]+1] == 'u') mapArray[roboPos[0]][roboPos[1]+1] = 'w';
+			if (mapArray[roboPos[0]][roboPos[1]-1] == 'u') mapArray[roboPos[0]][roboPos[1]-1] = 'w';
+		}
+		else
+		{
+			if (mapArray[roboPos[0]+1][roboPos[1]] == 'u') mapArray[roboPos[0]+1][roboPos[1]] = 'w';
+			if (mapArray[roboPos[0]-1][roboPos[1]] == 'u') mapArray[roboPos[0]-1][roboPos[1]] = 'w';
+		}
+
+		roboPos[0] = roboPos[0] + rowDir;
+		roboPos[1] = roboPos[1] + colDir;
+
 	}
 	else
 	{
-		if (mapArray[roboPos[0]+1][roboPos[1]] == 'u') mapArray[roboPos[0]+1][roboPos[1]] = 'w';
-		if (mapArray[roboPos[0]-1][roboPos[1]] == 'u') mapArray[roboPos[0]-1][roboPos[1]] = 'w';
+		TWITransmitData('b');
+		ControlReady = 0x0;
 	}
-	
-	//Update robot position
-	roboPos[0] = roboPos[0] + rowDir;
-	roboPos[1] = roboPos[1] + colDir;
 	
 	//Update map, this is a decision node
 	mapArray[roboPos[0]][roboPos[1]] = 'd';
@@ -852,14 +874,11 @@ void controlDecision(){
 	
 	while(ControlReady != 0xAA);
 	
-	int leftFree = leftIsFree(leftCoords); // This seems to never return true
+	int leftFree = leftIsFree(leftCoords);
 	int rightFree = rightIsFree(rightCoords);
 	int frontFree = frontIsFree(frontCoords);
-	
-	sendSensorData();
+
 	sendMap(mapArray);
-	test = 0x00;
-	while(test != 0x2B);
 	
 	if (leftFree)
 	{
@@ -888,13 +907,13 @@ void controlDecision(){
 		//int goToCoords[2] = findClosestOpenIntersect();
 		//goTo(goToCoords);
 	}
+
+	roboPos[0] = roboPos[0] + rowDir;
+	roboPos[1] = roboPos[1] + colDir;
 	
-	mapArray[roboPos[0]][roboPos[1]] = 'c';
-	
-	float numOfWheelTurns = 0;
 	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
 	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
-	refDist = traveledDistTot;
+	refDist = traveledDistTot-8;
 }
 
 //Checks if map needs update
@@ -903,7 +922,7 @@ void check_dist(){
 	
 	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
 	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
-	if (traveledDistTot - refDist > 40)
+	if (traveledDistTot - refDist > 37)
 	{
 		//Update map
 		if (mapArray[roboPos[0]][roboPos[1]] != 'd')
@@ -913,28 +932,22 @@ void check_dist(){
 		
 		if (colDir == 0)
 		{
-			mapArray[roboPos[0]][roboPos[1]+1] = 'w';
-			mapArray[roboPos[0]][roboPos[1]-1] = 'w';
+			if (mapArray[roboPos[0]][roboPos[1]+1] == 'u') mapArray[roboPos[0]][roboPos[1]+1] = 'w';
+			if (mapArray[roboPos[0]][roboPos[1]-1] == 'u') mapArray[roboPos[0]][roboPos[1]-1] = 'w';
 		}
 		else
 		{
-			mapArray[roboPos[0]+1][roboPos[1]] = 'w';
-			mapArray[roboPos[0]-1][roboPos[1]] = 'w';
+			if (mapArray[roboPos[0]+1][roboPos[1]] == 'u') mapArray[roboPos[0]+1][roboPos[1]] = 'w';
+			if (mapArray[roboPos[0]-1][roboPos[1]] == 'u') mapArray[roboPos[0]-1][roboPos[1]] = 'w';
 		}
 		
 		//Update robot position
 		roboPos[0] = roboPos[0] + rowDir;
 		roboPos[1] = roboPos[1] + colDir;
 		
-		sendSensorData();
 		sendMap(mapArray);
 		
 		refDist = traveledDistTot;
-		
-		TWITransmitData('S');
-		test = 0x00;
-		while(test != 0x2B);
-		TWITransmitData('p');
 	}
 }
 
@@ -961,7 +974,6 @@ int main(void)
 			
 			sendSensorData();
 			sendMap(mapArray);
-			while(test != 0x2B);
 			
 			//p-command means go forward adjusting to wall
 			TWITransmitData('p');
