@@ -426,10 +426,10 @@ void TWIRecieveFromControl(void)
 //Send sensor data to PC
 void sendSensorData(void) {
 	bluetooth_transmit('s');
-	//bluetooth_transmit(IR_sens_left);
-	//bluetooth_transmit(IR_sens_back_left);
-	bluetooth_transmit(roboPos[0]);
-	bluetooth_transmit(roboPos[1]);
+	bluetooth_transmit(IR_sens_left);
+	bluetooth_transmit(IR_sens_back_left);
+	//bluetooth_transmit(roboPos[0]);
+	//bluetooth_transmit(roboPos[1]);
 	bluetooth_transmit(IR_sens_right);
 	bluetooth_transmit(IR_sens_front);
 	bluetooth_transmit(Gyro_sens >> 8);
