@@ -166,6 +166,7 @@ void mapInit(void){
 	mapArray[15][15] = 'o';
 	mapArray[16][14] = 'w';
 	mapArray[16][16] = 'w';
+	mapArray[16][15] = 's';
 	
 	//Sets the start direction of the robot
 	rowDir = -1;
@@ -705,9 +706,9 @@ void findAdjCoords()
 }
 
 //"Floods" the map to find the closest decision point with open ('o') adjacent boxes
-void goTo()
+int goTo(char goToChar)
 {
-	uint8_t floodMapFirstCol;
+	uint8_t floodMapFirstCol = 0;
 	char floodMap[15][15];
 	uint8_t oCoords[2] = {0,0};
 	
@@ -749,25 +750,25 @@ void goTo()
 				if (floodMap[i][j] == floodingRound - 1)
 				{
 					//Floods adjacent boxes
-					if ((i+1 < 15) && (floodMap[i+1][j] > floodingRound) && (floodMap[i+1][j] != 'w') && (floodMap[i+1][j] != 'o'))
+					if ((i+1 < 15) && (floodMap[i+1][j] > floodingRound) && (floodMap[i+1][j] != 'w') && (floodMap[i+1][j] != goToChar))
 					{
 						floodMap[i+1][j] = floodingRound;
 					}
-					if ((i-1 > -1) && (floodMap[i-1][j] > floodingRound) && (floodMap[i-1][j] != 'w') && (floodMap[i-1][j] != 'o'))
+					if ((i-1 > -1) && (floodMap[i-1][j] > floodingRound) && (floodMap[i-1][j] != 'w') && (floodMap[i-1][j] != goToChar))
 					{
 						floodMap[i-1][j] = floodingRound;
 					}
-					if ((j+1 < 15) && (floodMap[i][j+1] > floodingRound) && (floodMap[i][j+1] != 'w') && (floodMap[i][j+1] != 'o'))
+					if ((j+1 < 15) && (floodMap[i][j+1] > floodingRound) && (floodMap[i][j+1] != 'w') && (floodMap[i][j+1] != goToChar))
 					{
 						floodMap[i][j+1] = floodingRound;
 					}
-					if ((j-1 > -1) && (floodMap[i][j-1] > floodingRound) && (floodMap[i][j-1] != 'w') && (floodMap[i][j-1] != 'o'))
+					if ((j-1 > -1) && (floodMap[i][j-1] > floodingRound) && (floodMap[i][j-1] != 'w') && (floodMap[i][j-1] != goToChar))
 					{
 						floodMap[i][j-1] = floodingRound;
 					}
 				}
 				//Save the coordinates of the closest open space in oCoords
-				else if (floodMap[i][j] == 'o')
+				else if (floodMap[i][j] == goToChar)
 				{
 					oCoords[0] = i;
 					oCoords[1] = j;
@@ -778,13 +779,13 @@ void goTo()
 		}
 	}
 	
-	//Saves the all the coordinates in the route from the robot to the found 'o' (on the condition an 'o' has been found) by starting from the 'o'
+	//Saves the all the coordinates in the route from the robot to the found goToChar (on the condition an goToChar has been found) by starting from the goToChar
 	// and searching for adjacent coordinates with lower flooding numbers.
 	if (foundO)
 	{
 		uint8_t route[floodingRound][2];
-		route[floodingRound-1][0] = oCoords[0]; //Saves the found 'o's row coordinate last in the the route array
-		route[floodingRound-1][1] = oCoords[1]; //Saves the found 'o's column coordinate last in the the route array
+		route[floodingRound-1][0] = oCoords[0]; //Saves the found goToChars row coordinate last in the the route array
+		route[floodingRound-1][1] = oCoords[1]; //Saves the found goToChars column coordinate last in the the route array
 		
 		while(floodingRound > 1)
 		{
@@ -894,8 +895,10 @@ void goTo()
 
 			//Goes forward a box, adjusting to wall if possible
 			goForty();
+			return 1;
 		}
 	}
+	return 0;
 }
 
 //Decision maker in an intersection or a turn
@@ -938,7 +941,16 @@ void controlDecision(){
 		TWITransmitData('S');
 		sendMap();
 		
-		goTo();
+		if (goTo('o') == 0)
+		{
+			goTo('s');
+			//GrabTheThang();
+			TWITransmitData('c');
+			goTo('g');
+			//DropTheThang();
+			TWITransmitData('o');
+			goTo('s');
+		}
 	}
 	mapArray[roboPos[0]][roboPos[1]] = 'c';
 	refDist = 0;
