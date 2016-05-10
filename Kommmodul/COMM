@@ -1,4 +1,3 @@
-
 /*
 * COMM.c
 *
@@ -48,7 +47,6 @@ volatile signed int rowDir;		//Row direction
 volatile signed int colDir;		//Coloumn direction
 
 volatile uint8_t test = 0x0;
-volatile int lastNode = 0;
 
 //Interrupt from firefly
 ISR(USART_RXC_vect) {
@@ -471,6 +469,13 @@ void sendMap(char map[MAPROWS][MAPCOLS]){
 	mapArray[roboPos[0]][roboPos[1]] = tmp;
 }
 
+//Update the traveledDist variable
+void updateTraveledDist(void)
+{
+	float numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
+	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
+}
+
 //Go forward, adjusting to wall
 void goForward(){
 	//Go forward, adjust to wall
@@ -484,16 +489,11 @@ void turnLeft(){
 	ControlReady = 0x0;
 	
 	//Update direction
-	if (rowDir != 0)
-	{
-		colDir = rowDir;
-		rowDir = 0;
-	}
-	else
-	{
-		rowDir = - colDir;
-		colDir = 0;
-	}
+	colDir = rowDir;
+	rowDir = -colDir;
+	
+	test = 0x0;
+	while(test != 0x2B);
 	
 	while(ControlReady != 0xAA);
 }
@@ -505,16 +505,11 @@ void turnRight(){
 	ControlReady = 0x0;
 	
 	//Update direction
-	if (rowDir != 0)
-	{
-		colDir = - rowDir;
-		rowDir = 0;
-	}
-	else
-	{
-		rowDir = colDir;
-		colDir = 0;
-	}
+	colDir = -rowDir;
+	rowDir = colDir;
+	
+	test = 0x0;
+	while(test != 0x2B);
 	
 	while(ControlReady != 0xAA);
 }
@@ -522,16 +517,16 @@ void turnRight(){
 //Turns 180 degrees
 void deadEnd(void)
 {
+	//Rotate 180 degrees
 	TWITransmitData('u');
 	ControlReady = 0x0;
 
-	float numOfWheelTurns = 0;
-	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
-	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
-
+	updateTraveledDist();
+	
+	//Check if a square has been passed
 	if (traveledDistTot - refDist > 25)
 	{
-		//Update map
+		//Update map if it is not a decisionpoint
 		if (mapArray[roboPos[0]][roboPos[1]] != 'd')
 		{
 			mapArray[roboPos[0]][roboPos[1]] = 'c';
@@ -548,38 +543,44 @@ void deadEnd(void)
 			if (mapArray[roboPos[0]-1][roboPos[1]] == 'u') mapArray[roboPos[0]-1][roboPos[1]] = 'w';
 		}
 		
+		//move one square ahead
 		roboPos[0] = roboPos[0] + rowDir;
 		roboPos[1] = roboPos[1] + colDir;
 	}
 	
+	//Set walls front of position and next to position
 	if (colDir == 0)
 	{
 		if (mapArray[roboPos[0]][roboPos[1]+1] == 'u') mapArray[roboPos[0]][roboPos[1]+1] = 'w';
 		if (mapArray[roboPos[0]][roboPos[1]-1] == 'u') mapArray[roboPos[0]][roboPos[1]-1] = 'w';
 		if (mapArray[roboPos[0]+rowDir][roboPos[1]] == 'u') mapArray[roboPos[0]][roboPos[1]+colDir] = 'w';
-		if (mapArray[roboPos[0]+rowDir][roboPos[1]+1] == 'u') mapArray[roboPos[0]+1][roboPos[1]+colDir] = 'w';
-		if (mapArray[roboPos[0]+rowDir][roboPos[1]-1] == 'u') mapArray[roboPos[0]-1][roboPos[1]+colDir] = 'w';
 	}
 	else
 	{
 		if (mapArray[roboPos[0]+1][roboPos[1]] == 'u') mapArray[roboPos[0]+1][roboPos[1]] = 'w';
 		if (mapArray[roboPos[0]-1][roboPos[1]] == 'u') mapArray[roboPos[0]-1][roboPos[1]] = 'w';
 		if (mapArray[roboPos[0]][roboPos[1]+colDir] == 'u') mapArray[roboPos[0]][roboPos[1]+colDir] = 'w';
-		if (mapArray[roboPos[0]+1][roboPos[1]+colDir] == 'u') mapArray[roboPos[0]+1][roboPos[1]+colDir] = 'w';
-		if (mapArray[roboPos[0]-1][roboPos[1]+colDir] == 'u') mapArray[roboPos[0]-1][roboPos[1]+colDir] = 'w';
 	}
 	
+	//Change direction
 	rowDir = -rowDir;
 	colDir = -colDir;
 	
+	//Send the new updated map
 	sendMap(mapArray);
+
+	test = 0x0;
+	while(test != 0x2B);
 	
-	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
-	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
+	updateTraveledDist();
+	
+	//Set the refDist so it is configured to the distance from the wall
 	refDist = traveledDistTot-8;
 	
+	//Wait for control module to finish
 	while(ControlReady != 0xAA);
 	
+	//Move forward
 	goForward();
 }
 
@@ -830,13 +831,13 @@ void goTo(int coords[2])
 //Decision maker in an intersection or a turn
 void controlDecision(){
 
-	float numOfWheelTurns = 0;
-	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
-	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
+	updateTraveledDist();
 
-	//check if we have not moved one distance
+	//check if we moved one square
 	if(traveledDistTot - refDist > 15)
 	{
+		test = 0x0;
+		while(test != 0x2B);
 		TWITransmitData('b');
 		ControlReady = 0x0;
 		
@@ -863,6 +864,8 @@ void controlDecision(){
 	}
 	else
 	{
+		test = 0x0;
+		while(test != 0x2B);
 		TWITransmitData('b');
 		ControlReady = 0x0;
 	}
@@ -872,13 +875,18 @@ void controlDecision(){
 	
 	findAdjCoords();
 	
+	//Wait for robot to enter intersection
 	while(ControlReady != 0xAA);
 	
 	int leftFree = leftIsFree(leftCoords);
 	int rightFree = rightIsFree(rightCoords);
 	int frontFree = frontIsFree(frontCoords);
 
+	//Send updated map
 	sendMap(mapArray);
+	
+	test = 0x0;
+	while(test != 0x2B);
 	
 	if (leftFree)
 	{
@@ -890,6 +898,8 @@ void controlDecision(){
 		TWITransmitData('z');
 		ControlReady = 0x0;
 		while(ControlReady != 0xAA);
+		test = 0x0;
+		while(test != 0x2B);
 		goForward();
 	}
 	else if (rightFree)
@@ -899,29 +909,26 @@ void controlDecision(){
 	}
 	else
 	{
+		TWITransmitData('S');
 		while (1)
 		{
-			TWITransmitData('S');
+			_delay_ms(1000);
 			sendMap(mapArray);
 		}
-		//int goToCoords[2] = findClosestOpenIntersect();
-		//goTo(goToCoords);
 	}
 
 	roboPos[0] = roboPos[0] + rowDir;
 	roboPos[1] = roboPos[1] + colDir;
 	
-	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
-	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
+	updateTraveledDist();
 	refDist = traveledDistTot-8;
 }
 
 //Checks if map needs update
 void check_dist(){
-	float numOfWheelTurns = 0;
 	
-	numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
-	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
+	updateTraveledDist();
+	
 	if (traveledDistTot - refDist > 37)
 	{
 		//Update map
@@ -947,6 +954,9 @@ void check_dist(){
 		
 		sendMap(mapArray);
 		
+		test = 0x0;
+		while(test != 0x2B);
+		
 		refDist = traveledDistTot;
 	}
 }
@@ -957,23 +967,22 @@ int main(void)
 	init_bluetooth();
 	mapInit();
 	
+	// 	test = 0x0;
+	// 	while(test != 0x2B);
+	
 	while (1)
 	{
 		//Check if autonomous mode
 		while(!(PINB & (1<<PINB0))) {
 			
-			//z-command means go short forward, to enter the track
-			//TWITransmitData('z');
-			//ControlReady = 0x0;
-			//while(ControlReady != 0xAA);
-			
-			float numOfWheelTurns = 0;
-			numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
-			traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
+			updateTraveledDist();
 			refDist = traveledDistTot;
 			
 			sendSensorData();
 			sendMap(mapArray);
+			
+			test = 0x0;
+			while(test != 0x2B);
 			
 			//p-command means go forward adjusting to wall
 			TWITransmitData('p');
@@ -982,7 +991,7 @@ int main(void)
 			{
 				check_dist();
 				
-				//Check if in a intersection
+				//Check if intersection
 				if ((IR_sens_left < 0x1C) || (IR_sens_right < 0x1C))
 				{
 					controlDecision();
@@ -994,12 +1003,10 @@ int main(void)
 				}
 				
 				sendSensorData();
-				sendMap(mapArray);
+				//sendMap(mapArray);
 			}
 			
 		}
-
-
 		sendSensorData();
 		_delay_ms(100);
 		
