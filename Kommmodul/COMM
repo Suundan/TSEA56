@@ -47,6 +47,7 @@ volatile signed int rowDir;		//Row direction
 volatile signed int colDir;		//Coloumn direction
 
 volatile uint8_t test = 0x0;
+volatile int milton = 0;
 
 //Interrupt from firefly
 ISR(USART_RXC_vect) {
@@ -489,11 +490,16 @@ void turnLeft(){
 	ControlReady = 0x0;
 	
 	//Update direction
-	colDir = rowDir;
-	rowDir = -colDir;
-	
-	test = 0x0;
-	while(test != 0x2B);
+	if (rowDir != 0)
+	{
+		colDir = rowDir;
+		rowDir = 0;
+	}
+	else
+	{
+		rowDir = - colDir;
+		colDir = 0;
+	}
 	
 	while(ControlReady != 0xAA);
 }
@@ -505,11 +511,16 @@ void turnRight(){
 	ControlReady = 0x0;
 	
 	//Update direction
-	colDir = -rowDir;
-	rowDir = colDir;
-	
-	test = 0x0;
-	while(test != 0x2B);
+	if (rowDir != 0)
+	{
+		colDir = - rowDir;
+		rowDir = 0;
+	}
+	else
+	{
+		rowDir = colDir;
+		colDir = 0;
+	}
 	
 	while(ControlReady != 0xAA);
 }
@@ -553,7 +564,7 @@ void deadEnd(void)
 	{
 		if (mapArray[roboPos[0]][roboPos[1]+1] == 'u') mapArray[roboPos[0]][roboPos[1]+1] = 'w';
 		if (mapArray[roboPos[0]][roboPos[1]-1] == 'u') mapArray[roboPos[0]][roboPos[1]-1] = 'w';
-		if (mapArray[roboPos[0]+rowDir][roboPos[1]] == 'u') mapArray[roboPos[0]][roboPos[1]+colDir] = 'w';
+		if (mapArray[roboPos[0]+rowDir][roboPos[1]] == 'u') mapArray[roboPos[0]+rowDir][roboPos[1]] = 'w';
 	}
 	else
 	{
@@ -568,14 +579,11 @@ void deadEnd(void)
 	
 	//Send the new updated map
 	sendMap(mapArray);
-
-	test = 0x0;
-	while(test != 0x2B);
 	
 	updateTraveledDist();
 	
 	//Set the refDist so it is configured to the distance from the wall
-	refDist = traveledDistTot-8;
+	refDist = traveledDistTot-10;
 	
 	//Wait for control module to finish
 	while(ControlReady != 0xAA);
@@ -832,12 +840,12 @@ void goTo(int coords[2])
 void controlDecision(){
 
 	updateTraveledDist();
+	TWITransmitData('S');
+	sendSensorData();
 
 	//check if we moved one square
-	if(traveledDistTot - refDist > 15)
+	if(traveledDistTot - refDist > 18)
 	{
-		test = 0x0;
-		while(test != 0x2B);
 		TWITransmitData('b');
 		ControlReady = 0x0;
 		
@@ -864,9 +872,15 @@ void controlDecision(){
 	}
 	else
 	{
-		test = 0x0;
-		while(test != 0x2B);
-		TWITransmitData('b');
+		if(milton == 1)
+		{
+			TWITransmitData('b');
+		}
+		else
+		{
+			TWITransmitData('j');
+		}
+		milton = 0;
 		ControlReady = 0x0;
 	}
 	
@@ -883,10 +897,8 @@ void controlDecision(){
 	int frontFree = frontIsFree(frontCoords);
 
 	//Send updated map
+	sendSensorData();
 	sendMap(mapArray);
-	
-	test = 0x0;
-	while(test != 0x2B);
 	
 	if (leftFree)
 	{
@@ -898,8 +910,6 @@ void controlDecision(){
 		TWITransmitData('z');
 		ControlReady = 0x0;
 		while(ControlReady != 0xAA);
-		test = 0x0;
-		while(test != 0x2B);
 		goForward();
 	}
 	else if (rightFree)
@@ -921,7 +931,7 @@ void controlDecision(){
 	roboPos[1] = roboPos[1] + colDir;
 	
 	updateTraveledDist();
-	refDist = traveledDistTot-8;
+	refDist = traveledDistTot;
 }
 
 //Checks if map needs update
@@ -929,7 +939,7 @@ void check_dist(){
 	
 	updateTraveledDist();
 	
-	if (traveledDistTot - refDist > 37)
+	if (traveledDistTot - refDist > 40)
 	{
 		//Update map
 		if (mapArray[roboPos[0]][roboPos[1]] != 'd')
@@ -953,12 +963,11 @@ void check_dist(){
 		roboPos[1] = roboPos[1] + colDir;
 		
 		sendMap(mapArray);
-		
-		test = 0x0;
-		while(test != 0x2B);
-		
 		refDist = traveledDistTot;
+
+		milton = 1;
 	}
+
 }
 
 int main(void)
@@ -981,9 +990,6 @@ int main(void)
 			sendSensorData();
 			sendMap(mapArray);
 			
-			test = 0x0;
-			while(test != 0x2B);
-			
 			//p-command means go forward adjusting to wall
 			TWITransmitData('p');
 			
@@ -997,13 +1003,13 @@ int main(void)
 					controlDecision();
 				}
 				//Check if in a dead-end
-				else if (IR_sens_front > 0x60)
+				else if (IR_sens_front > 0x50)
 				{
 					deadEnd();
 				}
 				
 				sendSensorData();
-				//sendMap(mapArray);
+				sendMap(mapArray);
 			}
 			
 		}
