@@ -47,20 +47,20 @@ volatile signed int rowDir;		//Row direction
 volatile signed int colDir;		//Coloumn direction
 
 volatile uint8_t test = 0x0;
-volatile int milton = 0;
+volatile int LastDecicionNode = 0;
 
 //Interrupt from firefly
 ISR(USART_RXC_vect) {
 	//Send data to buss
 	uint8_t temp = UDR;
-	if (temp == 0x2B)
-	{
-		test = temp;
-	}
-	else
-	{
+	//if (temp == 0x2B)
+	//{
+	//	test = temp;
+	//}
+	//else
+	//{
 		TWITransmitData(temp);
-	}
+	//}
 }
 
 //Interrupt from TWI-bus
@@ -208,7 +208,8 @@ void TWIStop(void) {
 
 //Send 8-bit data to bus
 void TWITransmitData(uint8_t data) {
-	
+	bluetooth_transmit('x');
+	bluetooth_transmit(data);
 	//Disable interrupts while sending data to bus
 	cli();
 	
@@ -574,15 +575,23 @@ void deadEnd(void)
 	}
 	
 	//Change direction
-	rowDir = -rowDir;
-	colDir = -colDir;
+	if (rowDir != 0)
+	{
+		colDir = 0;
+		rowDir = -rowDir;
+	}
+	else
+	{
+		rowDir = 0;
+		colDir = -colDir;
+	}
 	
 	//Send the new updated map
 	sendMap(mapArray);
 	
 	updateTraveledDist();
 	
-	//Set the refDist so it is configured to the distance from the wall
+	//Set the so it is configured to the distance from the wall
 	refDist = traveledDistTot-10;
 	
 	//Wait for control module to finish
@@ -838,7 +847,8 @@ void goTo(int coords[2])
 
 //Decision maker in an intersection or a turn
 void controlDecision(){
-
+	bluetooth_transmit('x');
+	bluetooth_transmit('d');
 	updateTraveledDist();
 	TWITransmitData('S');
 	sendSensorData();
@@ -872,15 +882,15 @@ void controlDecision(){
 	}
 	else
 	{
-		if(milton == 1)
-		{
-			TWITransmitData('b');
-		}
-		else
+		if(mapArray[roboPos[0]-rowDir][roboPos[1]-colDir]=='d')
 		{
 			TWITransmitData('j');
 		}
-		milton = 0;
+		else
+		{
+			TWITransmitData('b');
+		}
+		//LastDecicionNode = 0;
 		ControlReady = 0x0;
 	}
 	
@@ -936,7 +946,8 @@ void controlDecision(){
 
 //Checks if map needs update
 void check_dist(){
-	
+	bluetooth_transmit('x');
+	bluetooth_transmit('C');
 	updateTraveledDist();
 	
 	if (traveledDistTot - refDist > 40)
@@ -965,7 +976,7 @@ void check_dist(){
 		sendMap(mapArray);
 		refDist = traveledDistTot;
 
-		milton = 1;
+		//LastDecicionNode = 1;
 	}
 
 }
