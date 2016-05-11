@@ -23,13 +23,8 @@ volatile uint8_t IR_detector = 0x0;
 //Control module ready to receive
 volatile uint8_t ControlReady = 0x0;
 
-//Wheel
-const uint8_t wheelRad = 3;
-const uint8_t numOfWheelSectors = 8;
-
 //Distance variables
 volatile float refDist = 0;
-volatile float traveledDistTot = 0;
 
 //Map variables
 #define MAPROWS 17
@@ -457,13 +452,6 @@ void sendMap(){
 	mapArray[roboPos[0]][roboPos[1]] = tmp;
 }
 
-//Update the traveledDist variable
-void updateTraveledDist(void)
-{
-	float numOfWheelTurns = (float) Photo_distance / numOfWheelSectors;
-	traveledDistTot = 2*3.14*wheelRad*numOfWheelTurns; // Total distance in cm
-}
-
 //Go forward, adjusting to wall
 void goForward(){
 	//Go forward, adjust to wall
@@ -516,13 +504,12 @@ void turnRight(){
 void deadEnd(void)
 {
 	//Rotate 180 degrees
+	uint8_t distance = Photo_distance;
 	TWITransmitData('u');
 	ControlReady = 0x0;
 	
-	updateTraveledDist();
-	
 	//Check if a square has been passed
-	if (traveledDistTot - refDist > 25)
+	if (distance - refDist > 10)
 	{
 		//Update map if it is not a decision point
 		if ((mapArray[roboPos[0]][roboPos[1]] != 'd') || (mapArray[roboPos[0]][roboPos[1]] != 'g') )
@@ -575,32 +562,25 @@ void deadEnd(void)
 	//Send the new updated map
 	sendMap();
 	
-	updateTraveledDist();
-	
-	//Set the so it is configured to the distance from the wall
-	refDist = traveledDistTot-10;
-	
 	//Wait for control module to finish
 	while(ControlReady != 0xAA);
 	
+	refDist = Photo_distance - 2;
+	
 	//Move forward
 	goForward();
-	
 }
 
 //Goes forty centimeters forward. Uses P control if possible
 void goForty()
 {
 	char lastSent = 0;
-	Photo_distance = 0;
 	
-	updateTraveledDist();
+	refDist = Photo_distance;
 	
-	refDist = traveledDistTot;
-	
-	while(traveledDistTot - refDist < 40)
+	while(Photo_distance - refDist < 16)
 	{
-		if ((IR_sens_left < 0x1C) && (IR_sens_back_left < 0x1C))
+		if (IR_sens_left > 0x2A)
 		{
 			//P-control if distance to wall is not too big
 			if (lastSent != 'p')
@@ -612,21 +592,19 @@ void goForty()
 		else
 		{
 			//just go forward without P control if no adjacent wall to the left
-			if (lastSent != 'F')
+			if (lastSent != 'f')
 			{
-				TWITransmitData('F');
-				lastSent = 'F';
+				TWITransmitData('f');
+				lastSent = 'f';
 			}
 		}
-		
-		updateTraveledDist();
-		sendSensorData();
-	}
+	}	
 	
 	//Update robot position
 	roboPos[0] = roboPos[0] + rowDir;
 	roboPos[1] = roboPos[1] + colDir;
 	
+	sendSensorData();
 	sendMap();
 	
 }
@@ -956,12 +934,9 @@ void controlDecision(){
 	
 	bluetooth_transmit('x');
 	bluetooth_transmit('d');
-	updateTraveledDist();
-	TWITransmitData('S');
-	sendSensorData();
 	
 	//check if we moved one square
-	if(traveledDistTot - refDist > 18)
+	if(Photo_distance - refDist > 5)
 	{
 		TWITransmitData('b');
 		ControlReady = 0x0;
@@ -1055,8 +1030,7 @@ void controlDecision(){
 	roboPos[0] = roboPos[0] + rowDir;
 	roboPos[1] = roboPos[1] + colDir;
 	
-	updateTraveledDist();
-	refDist = traveledDistTot;
+	refDist = Photo_distance;
 }
 
 //Checks if map needs update
@@ -1065,9 +1039,9 @@ void check_dist(){
 	bluetooth_transmit('x');
 	bluetooth_transmit('C');
 	
-	updateTraveledDist();
+	uint16_t distance = Photo_distance;
 	
-	if (traveledDistTot - refDist > 40)
+	if (distance - refDist > 15)
 	{
 		//Update map, unless we've found the goal
 		if ((mapArray[roboPos[0]][roboPos[1]] != 'g') || (mapArray[roboPos[0]][roboPos[1]] != 'd'))
@@ -1092,7 +1066,7 @@ void check_dist(){
 		
 		sendMap();
 		
-		refDist = traveledDistTot;
+		refDist = distance;
 		
 		//LastDecicionNode = 1;
 	}
@@ -1109,11 +1083,11 @@ uint8_t main(void)
 		//Check if autonomous mode
 		while(!(PINB & (1<<PINB0))) {
 			
-			updateTraveledDist();
-			refDist = traveledDistTot;
+			refDist = Photo_distance;
 			
 			sendSensorData();
 			sendMap();
+			int send = 0;
 			
 			//p-command means go forward adjusting to wall
 			TWITransmitData('p');
@@ -1123,13 +1097,13 @@ uint8_t main(void)
 			{
 				check_dist();
 				
-				//Check if in a intersection
+				//Check if in an intersection
 				if ((IR_sens_left < 0x1C) || (IR_sens_right < 0x1C))
 				{
 					controlDecision();
 				}
 				//Check if in a dead-end
-				else if (IR_sens_front > 0x50)
+				else if (IR_sens_front > 0x49)
 				{
 					if (IR_detector == 0xFF)
 					{
@@ -1139,15 +1113,19 @@ uint8_t main(void)
 					goForward();
 				}
 				
-				if (IR_sens_front > 0x60)
+				if (IR_sens_front > 0x49)
 				{
 					deadEnd();
 					goForward();
 				}
 				
-				sendSensorData();
-				_delay_ms(100);
-				sendMap();
+				if (send == 50)
+				{
+					sendSensorData();
+					sendMap();
+					send = 0;
+				}
+				send++;
 			}
 		}
 		
