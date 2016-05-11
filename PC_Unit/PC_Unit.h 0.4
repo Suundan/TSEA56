@@ -1193,18 +1193,25 @@ namespace CppWinForm1 {
 	}
 	private: void ReadMap()
 	{
-		char temp;
-		for (int i = 0; i < mapRows; i++)
+		try
 		{
-			for (int j = 0; j < mapCols; j++)
+			char temp;
+			for (int i = 0; i < mapRows; i++)
 			{
-				temp = serialPort2->ReadByte();
-				if (temp != this->pc_map[j + i * mapCols])
+				for (int j = 0; j < mapCols; j++)
 				{
-					this->pc_map[j + i * mapCols] = temp;
-					paintMapRect(temp, i, j);
+					temp = serialPort2->ReadByte();
+					if (temp != this->pc_map[j + i * mapCols])
+					{
+						this->pc_map[j + i * mapCols] = temp;
+						paintMapRect(temp, i, j);
+					}
 				}
 			}
+		}
+		catch (System::IO::IOException^)
+		{
+			//do nothing
 		}
 	}
 			 /// Reads two bytes received in COM port and returns them as an int
@@ -1240,6 +1247,11 @@ namespace CppWinForm1 {
 		readHeader = true;
 	}
 			 ///When data is recieved via bluetooth, the first byte is read as a header char that determines what to do with the received data
+	private: void readDecision()
+	{
+		String ^decision = Char::ConvertFromUtf32(serialPort2->ReadByte());
+		writeRecieved("Decision: " + decision);
+	}
 	private: System::Void serialPort2_DataReceived(System::Object^  sender, System::IO::Ports::SerialDataReceivedEventArgs^  e) {
 		if (readHeader) {
 			try
@@ -1274,6 +1286,10 @@ namespace CppWinForm1 {
 					Sleep(10);
 					panelMapRecieved->BackColor = Color::Gainsboro;
 					//map data
+					break;
+				case 'x':
+					//decision
+					readDecision();
 					break;
 				default:
 					writeRecieved("Unknown data recevied" + " \"" + (unsigned char)header + "\"");
