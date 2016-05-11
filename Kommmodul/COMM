@@ -112,9 +112,21 @@ void init_bluetooth()
 	
 	//Enable send, receive and interrupt
 	UCSRB = (1<<RXEN)|(1<<TXEN)|(1<<RXCIE);
-
-	//Data format: 8 data, 1 stop bit
+	
+	//Data format: 8data, 1stop bit ligger som standard
 	UCSRC = (1<<URSEL)|(1<<UCSZ0)|(1<<UCSZ1);
+	//_delay_ms(1500);
+	// 	 	bluetooth_transmit('$');
+	// 	 	bluetooth_transmit('$');
+	// 	 	bluetooth_transmit('$');
+	// 	 	_delay_ms(1500);
+	// 	 	bluetooth_transmit('F');
+	// 	 	bluetooth_transmit(',');
+	// 	 	bluetooth_transmit('1');
+	//
+	// 	 	bluetooth_transmit('-');
+	// 	 	bluetooth_transmit('-');
+	// 	 	bluetooth_transmit('-');
 }
 
 //Bus config
@@ -155,10 +167,10 @@ void mapInit(void){
 	roboPos[1] = 15;
 	
 	//Updating surrounding boxes
-	mapArray[15][15] = 'o';
-	mapArray[16][14] = 'w';
-	mapArray[16][16] = 'w';
-	mapArray[16][15] = 's';
+	mapArray[15][15] = 'o';		//Open infront of robot
+	mapArray[16][14] = 'w';		//Wall to the left of start position
+	mapArray[16][16] = 'w';		//Wall to the right of start position
+	mapArray[16][15] = 's';		//Start position
 	
 	//Sets the start direction of the robot
 	rowDir = -1;
@@ -578,7 +590,7 @@ void goForty()
 	
 	refDist = Photo_distance;
 	
-	while(Photo_distance - refDist < 16)
+	while(Photo_distance - refDist < 15)
 	{
 		if (IR_sens_left > 0x2A)
 		{
@@ -598,7 +610,9 @@ void goForty()
 				lastSent = 'f';
 			}
 		}
-	}	
+	}
+	
+	TWITransmitData('S');
 	
 	//Update robot position
 	roboPos[0] = roboPos[0] + rowDir;
@@ -737,20 +751,21 @@ void findAdjCoords()
 int goTo(char goToChar)
 {
 	uint8_t floodMapFirstCol = 0;
-	char floodMap[15][15];
+	uint8_t floodMap[15][15];
 	uint8_t oCoords[2] = {0,0};
 	
 	//Finds where to cut off the big map
-	for (uint8_t col = 1; col<16; col++)
+	for (int col = 1; col<16; col++)
 	{
-		for (uint8_t row = 1; row<16; row++)
+		for (int row = 1; row<16; row++)
 		{
-			if (mapArray[row][col] != 'u' || mapArray[row][col] != 'w')
+			if (!(mapArray[row][col] == 'u' || mapArray[row][col] == 'w'))
 			{
 				floodMapFirstCol = col;
 				break;
 			}
 		}
+		if (floodMapFirstCol != 0) break;
 	}
 	
 	//Creates the flooding-map as a copy of a part of the big map
@@ -758,59 +773,86 @@ int goTo(char goToChar)
 	{
 		for (uint8_t j = floodMapFirstCol; j < floodMapFirstCol + 15; j++)
 		{
-			floodMap[i][j-floodMapFirstCol] =  mapArray[i][j];
+			floodMap[i-1][j-floodMapFirstCol] =  mapArray[i][j];
 		}
 	}
 	
 	//Floods map until an open intersection is found
 	uint8_t foundO = 0;							//Has value 1 or 0 depending on weather an O has been found or not
 	uint8_t floodingRound = 1;					//Has the value of number of floodings it has done so far
-	floodMap[roboPos[0]][roboPos[1]] = 0;		//Indicates that flooding starts from the coordinates of the robot
+	floodMap[roboPos[0]][roboPos[1]-floodMapFirstCol] = 0;		//Indicates that flooding starts from the coordinates of the robot
 	
 	//Flooding
-	while(!foundO)
+	while(1)
 	{
-		for(uint8_t i = 0; i<15; i++)
+		for(int i = 0; i<15; i++)
 		{
-			for(uint8_t j = 0; j<15; j++)
+			for(int j = 0; j<15; j++)
 			{
 				//Checks if box was flooded last round
 				if (floodMap[i][j] == floodingRound - 1)
 				{
 					//Floods adjacent boxes
-					if ((i+1 < 15) && (floodMap[i+1][j] > floodingRound) && (floodMap[i+1][j] != 'w') && (floodMap[i+1][j] != goToChar))
+					if ((i+1 < 15) && (floodMap[i+1][j] > floodingRound) && (floodMap[i+1][j] != 'w'))
 					{
+						if(floodMap[i+1][j] == goToChar)
+						{
+							oCoords[0] = i+1;
+							oCoords[1] = j;
+							foundO = 1;
+							break;
+						}
 						floodMap[i+1][j] = floodingRound;
 					}
-					if ((i-1 > -1) && (floodMap[i-1][j] > floodingRound) && (floodMap[i-1][j] != 'w') && (floodMap[i-1][j] != goToChar))
+					if ((i-1 > -1) && (floodMap[i-1][j] > floodingRound) && (floodMap[i-1][j] != 'w'))
 					{
+						if (floodMap[i-1][j] == goToChar)
+						{
+							oCoords[0] = i-1;
+							oCoords[1] = j;
+							foundO = 1;
+							break;
+						}
 						floodMap[i-1][j] = floodingRound;
 					}
-					if ((j+1 < 15) && (floodMap[i][j+1] > floodingRound) && (floodMap[i][j+1] != 'w') && (floodMap[i][j+1] != goToChar))
+					if ((j+1 < 15) && (floodMap[i][j+1] > floodingRound) && (floodMap[i][j+1] != 'w'))
 					{
+						if (floodMap[i][j+1] == goToChar)
+						{
+							oCoords[0] = i;
+							oCoords[1] = j+1;
+							foundO = 1;
+							break;
+						}
 						floodMap[i][j+1] = floodingRound;
 					}
-					if ((j-1 > -1) && (floodMap[i][j-1] > floodingRound) && (floodMap[i][j-1] != 'w') && (floodMap[i][j-1] != goToChar))
+					if ((j-1 > -1) && (floodMap[i][j-1] > floodingRound) && (floodMap[i][j-1] != 'w'))
 					{
+						if (floodMap[i][j-1] == goToChar)
+						{
+							oCoords[0] = i;
+							oCoords[1] = j-1;
+							foundO = 1;
+							break;
+						}
 						floodMap[i][j-1] = floodingRound;
 					}
 				}
-				//Save the coordinates of the closest open space in oCoords
-				else if (floodMap[i][j] == goToChar)
-				{
-					oCoords[0] = i;
-					oCoords[1] = j;
-					foundO = 1;
-				}
-				++floodingRound;
+				
 			}
+			if (foundO) break;
 		}
+		if (foundO) break;
+		++floodingRound;
 	}
 	
-	//Saves the all the coordinates in the route from the robot to the found goToChar (on the condition an goToChar has been found) by starting from the goToChar
+	--floodingRound;
+	
+	//Saves all the coordinates in the route from the robot to the found goToChar (on the condition an goToChar has been found) by starting from the goToChar
 	// and searching for adjacent coordinates with lower flooding numbers.
 	if (foundO)
 	{
+		uint8_t floodingTot = floodingRound;
 		uint8_t route[floodingRound][2];
 		route[floodingRound-1][0] = oCoords[0]; //Saves the found goToChars row coordinate last in the the route array
 		route[floodingRound-1][1] = oCoords[1]; //Saves the found goToChars column coordinate last in the the route array
@@ -824,7 +866,7 @@ int goTo(char goToChar)
 				route[floodingRound-2][0] = route[floodingRound-1][0]+1;
 				route[floodingRound-2][1] = route[floodingRound-1][1];
 			}
-			else if ((route[floodingRound-1][0]-1 > -1) && (floodMap[route[floodingRound-1][0]-1][route[floodingRound-1][1]] < floodingRound))
+			else if ((route[floodingRound-1][0] >= 1) && (floodMap[route[floodingRound-1][0]-1][route[floodingRound-1][1]] < floodingRound))
 			{
 				route[floodingRound-2][0] = route[floodingRound-1][0]-1;
 				route[floodingRound-2][1] = route[floodingRound-1][1];
@@ -834,7 +876,7 @@ int goTo(char goToChar)
 				route[floodingRound-2][0] = route[floodingRound-1][0];
 				route[floodingRound-2][1] = route[floodingRound-1][1]+1;
 			}
-			else if ((route[floodingRound-1][1]-1 > -1) && (floodMap[route[floodingRound-1][0]][route[floodingRound-1][1]-1] < floodingRound))
+			else if ((route[floodingRound-1][1] >= 1) && (floodMap[route[floodingRound-1][0]][route[floodingRound-1][1]-1] < floodingRound))
 			{
 				route[floodingRound-2][0] = route[floodingRound-1][0];
 				route[floodingRound-2][1] = route[floodingRound-1][1]-1;
@@ -843,17 +885,30 @@ int goTo(char goToChar)
 			{
 				//If we end up here something fucked up happened, lol.
 			}
-			--floodingRound;
+			floodingRound--;
 		}
+		
+		bluetooth_transmit('F');
+		bluetooth_transmit(floodMapFirstCol);
+		bluetooth_transmit(roboPos[0]);
+		bluetooth_transmit(roboPos[1]);
+		bluetooth_transmit(oCoords[0]);
+		bluetooth_transmit(oCoords[1]);
+		bluetooth_transmit(floodingTot);
+		for (int i = 0; i < floodingTot; i++)
+		{
+			bluetooth_transmit(route[i][0]);
+			bluetooth_transmit(route[i][1]);
+		}
+		bluetooth_transmit(0xFF);
 		
 		//Take robot to found point via decided route
 		int wantedRowDir;
 		int wantedColDir;
 		
-		for (uint8_t i = 0; i < (sizeof(route) / sizeof(route[0])); i++)
+		for (int i = 0; i < (sizeof(route) / 2); i++)
 		{
-			sendSensorData();
-			wantedRowDir = route[i][0] - roboPos[0];
+			wantedRowDir = route[i][0] + 1 - roboPos[0];
 			wantedColDir = route[i][1] + floodMapFirstCol - roboPos[1];
 			
 			if (wantedColDir != colDir)
@@ -923,8 +978,10 @@ int goTo(char goToChar)
 
 			//Goes forward a box, adjusting to wall if possible
 			goForty();
-			return 1;
+			_delay_ms(2000);
 		}
+		
+		return 1;
 	}
 	return 0;
 }
@@ -1015,15 +1072,15 @@ void controlDecision(){
 		
 		if (goTo('o') == 0)
 		{
-			goTo('s');
+			//goTo('o');
 			//GrabTheThang
-			TWITransmitData('c');
-			goTo('g');
+			//TWITransmitData('c');
+			//goTo('g');
 			//DropTheThang
-			TWITransmitData('o');
-			goTo('s');
+			//TWITransmitData('o');
+			//goTo('s');
 			//Now DANCE!
-			TWITransmitData('d');
+			//TWITransmitData('d');
 		}
 	}
 	
@@ -1072,6 +1129,11 @@ void check_dist(){
 	}
 }
 
+void sendFloodMap(void)
+{
+	
+}
+
 uint8_t main(void)
 {
 	TWIInit();
@@ -1087,7 +1149,6 @@ uint8_t main(void)
 			
 			sendSensorData();
 			sendMap();
-			int send = 0;
 			
 			//p-command means go forward adjusting to wall
 			TWITransmitData('p');
@@ -1119,13 +1180,9 @@ uint8_t main(void)
 					goForward();
 				}
 				
-				if (send == 50)
-				{
-					sendSensorData();
-					sendMap();
-					send = 0;
-				}
-				send++;
+				sendSensorData();
+				sendMap();
+				
 			}
 		}
 		
