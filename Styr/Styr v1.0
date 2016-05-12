@@ -778,6 +778,9 @@ void manual_mode(void){
 				TWITransmitData(0xAA);
 			}
 			break;
+			case 'f':
+			forward(speedPD,speedPD);
+			break;
 			default:
 			stop();
 		}
