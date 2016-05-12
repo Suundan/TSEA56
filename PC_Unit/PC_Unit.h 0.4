@@ -1134,7 +1134,7 @@ namespace CppWinForm1 {
 				labelCOMComboBox->ForeColor = Color::Black;
 				this->AcceptButton = this->sendButton;
 				// Tell robot, BT-link is up
-				send("e");
+				send("c");
 				this->openCOMBut->Enabled = false;
 			}
 			catch (System::IO::IOException^)
@@ -1193,25 +1193,18 @@ namespace CppWinForm1 {
 	}
 	private: void ReadMap()
 	{
-		try
+		char temp;
+		for (int i = 0; i < mapRows; i++)
 		{
-			char temp;
-			for (int i = 0; i < mapRows; i++)
+			for (int j = 0; j < mapCols; j++)
 			{
-				for (int j = 0; j < mapCols; j++)
+				temp = serialPort2->ReadByte();
+				if (temp != this->pc_map[j + i * mapCols])
 				{
-					temp = serialPort2->ReadByte();
-					if (temp != this->pc_map[j + i * mapCols])
-					{
-						this->pc_map[j + i * mapCols] = temp;
-						paintMapRect(temp, i, j);
-					}
+					this->pc_map[j + i * mapCols] = temp;
+					paintMapRect(temp, i, j);
 				}
 			}
-		}
-		catch (System::IO::IOException^)
-		{
-			//do nothing
 		}
 	}
 			 /// Reads two bytes received in COM port and returns them as an int
@@ -1247,30 +1240,6 @@ namespace CppWinForm1 {
 		readHeader = true;
 	}
 			 ///When data is recieved via bluetooth, the first byte is read as a header char that determines what to do with the received data
-	private: void readDecision()
-	{
-		String ^decision = Char::ConvertFromUtf32(serialPort2->ReadByte());
-		writeRecieved("Decision: " + decision);
-	}
-	private: void readGoTo()
-	{
-		uint8_t tmp;
-		writeRecieved("------GoTo------");
-		writeRecieved("First col: " + serialPort2->ReadByte());
-		writeRecieved("Robo pos - row: " + serialPort2->ReadByte() + ", col: " + serialPort2->ReadByte());
-		writeRecieved("oCoords - row: " + serialPort2->ReadByte() + ", col: " + serialPort2->ReadByte());
-		writeRecieved("sizeOf(route): " + serialPort2->ReadByte());
-		while (1)
-		{
-			tmp = serialPort2->ReadByte();
-			if (tmp == 0xFF)
-			{
-				writeRecieved("-------END-------");
-				return;
-			}
-			writeRecieved(" " + tmp + " ");
-		}
-	}
 	private: System::Void serialPort2_DataReceived(System::Object^  sender, System::IO::Ports::SerialDataReceivedEventArgs^  e) {
 		if (readHeader) {
 			try
@@ -1305,14 +1274,6 @@ namespace CppWinForm1 {
 					Sleep(10);
 					panelMapRecieved->BackColor = Color::Gainsboro;
 					//map data
-					break;
-				case 'x':
-					//decision
-					readDecision();
-					break;
-				case 'F':
-					//GoTo stuff
-					readGoTo();
 					break;
 				default:
 					writeRecieved("Unknown data recevied" + " \"" + (unsigned char)header + "\"");
