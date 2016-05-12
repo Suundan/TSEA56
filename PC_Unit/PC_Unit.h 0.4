@@ -1252,6 +1252,25 @@ namespace CppWinForm1 {
 		String ^decision = Char::ConvertFromUtf32(serialPort2->ReadByte());
 		writeRecieved("Decision: " + decision);
 	}
+	private: void readGoTo()
+	{
+		uint8_t tmp;
+		writeRecieved("------GoTo------");
+		writeRecieved("First col: " + serialPort2->ReadByte());
+		writeRecieved("Robo pos - row: " + serialPort2->ReadByte() + ", col: " + serialPort2->ReadByte());
+		writeRecieved("oCoords - row: " + serialPort2->ReadByte() + ", col: " + serialPort2->ReadByte());
+		writeRecieved("sizeOf(route): " + serialPort2->ReadByte());
+		while (1)
+		{
+			tmp = serialPort2->ReadByte();
+			if (tmp == 0xFF)
+			{
+				writeRecieved("-------END-------");
+				return;
+			}
+			writeRecieved(" " + tmp + " ");
+		}
+	}
 	private: System::Void serialPort2_DataReceived(System::Object^  sender, System::IO::Ports::SerialDataReceivedEventArgs^  e) {
 		if (readHeader) {
 			try
@@ -1290,6 +1309,10 @@ namespace CppWinForm1 {
 				case 'x':
 					//decision
 					readDecision();
+					break;
+				case 'F':
+					//GoTo stuff
+					readGoTo();
 					break;
 				default:
 					writeRecieved("Unknown data recevied" + " \"" + (unsigned char)header + "\"");
