@@ -504,5 +504,6 @@ int main(void)
 		
 		TWITransmit(0x10, IR_sens_left, IR_sens_left_back, IR_sens_right, IR_sens_front, Gyro_sens, distance_photo, ir_detected);
 		TWITransmit(0x40, IR_sens_left, IR_sens_left_back, IR_sens_right, IR_sens_front, Gyro_sens, distance_photo, ir_detected);
+		_delay_ms(10);
 	}
 }
