@@ -517,7 +517,7 @@ void deadEnd(void)
 	if (distance - refDist > 10)
 	{	
 		//Update map if it is not a decision point
-		if ((mapArray[roboPos[0]][roboPos[1]] != 'd') || (mapArray[roboPos[0]][roboPos[1]] != 'g') || (mapArray[roboPos[0]][roboPos[1]] != 's'))
+		if ((mapArray[roboPos[0]][roboPos[1]] != 'd') && (mapArray[roboPos[0]][roboPos[1]] != 'g') && (mapArray[roboPos[0]][roboPos[1]] != 's'))
 		{
 			mapArray[roboPos[0]][roboPos[1]] = 'c';
 		}
@@ -984,7 +984,7 @@ void controlDecision(){
 		ControlReady = 0x0;
 		
 		//Update map
-		if ((mapArray[roboPos[0]][roboPos[1]] != 'd') || (mapArray[roboPos[0]][roboPos[1]] != 'g') || (mapArray[roboPos[0]][roboPos[1]] != 's'))
+		if ((mapArray[roboPos[0]][roboPos[1]] != 'd') && (mapArray[roboPos[0]][roboPos[1]] != 'g') && (mapArray[roboPos[0]][roboPos[1]] != 's'))
 		{
 			mapArray[roboPos[0]][roboPos[1]] = 'c';
 		}
@@ -1076,7 +1076,7 @@ void check_dist(){
 	if (distance - refDist > 15)
 	{
 		//Update map, unless we've found the goal
-		if ((mapArray[roboPos[0]][roboPos[1]] != 'g') || (mapArray[roboPos[0]][roboPos[1]] != 'd') || (mapArray[roboPos[0]][roboPos[1]] != 's'))
+		if ((mapArray[roboPos[0]][roboPos[1]] != 'g') && (mapArray[roboPos[0]][roboPos[1]] != 'd') && (mapArray[roboPos[0]][roboPos[1]] != 's'))
 		{
 			mapArray[roboPos[0]][roboPos[1]] = 'c';
 		}
