@@ -28,6 +28,7 @@ namespace CppWinForm1 {
 			InitializeComponent();
 			InitializeOther();
 			pc_map = gcnew array<char>(mapCols * mapRows);
+			pc_map_new = gcnew array<char>(mapCols * mapRows);
 			//
 			//TODO: Add the constructor code here
 			//
@@ -142,6 +143,7 @@ namespace CppWinForm1 {
 
 
 	private: array<char> ^pc_map;
+	private: array<char> ^pc_map_new;
 
 	private:
 		/// <summary>
@@ -1191,6 +1193,20 @@ namespace CppWinForm1 {
 		String ^recieved = serialPort1->ReadExisting();
 		writeRecieved(recieved);
 	}
+	private: void paintMap()
+	{
+		for (int i = 0; i < mapRows; i++)
+		{
+			for (int j = 0; j < mapCols; j++)
+			{
+				if (this->pc_map_new[j + i * mapCols] != this->pc_map[j + i * mapCols])
+				{
+					this->pc_map[j + i * mapCols] = this->pc_map_new[j + i * mapCols];
+					paintMapRect(this->pc_map_new[j + i * mapCols], i, j);
+				}
+			}
+		}
+	}
 	private: void ReadMap()
 	{
 		char temp;
@@ -1199,10 +1215,9 @@ namespace CppWinForm1 {
 			for (int j = 0; j < mapCols; j++)
 			{
 				temp = serialPort2->ReadByte();
-				if (temp != this->pc_map[j + i * mapCols])
+				if (temp != this->pc_map_new[j + i * mapCols])
 				{
-					this->pc_map[j + i * mapCols] = temp;
-					paintMapRect(temp, i, j);
+					this->pc_map_new[j + i * mapCols] = temp;
 				}
 			}
 		}
@@ -1226,25 +1241,33 @@ namespace CppWinForm1 {
 			 /// Reads the sensor data receieved in the order it is sent
 	private: void ReadSensor()
 	{
-		//receive order: front Left IR, back Left IR, right IR, front IR,  gyro, distance photo, goaldetect IR
-		writeSensorData(this->textBoxLeftIRFront, serialPort2->ReadByte());
-		writeSensorData(this->textBoxLeftIRRear, serialPort2->ReadByte());
-		//writeSensorData(this->textBoxIRLeft, serialPort2->ReadByte());
-		writeSensorData(this->textBoxIRRight, serialPort2->ReadByte());
-		writeSensorData(this->textBoxIRFront, serialPort2->ReadByte());
-		writeSensorData(this->textBoxGyro, Read16SP2());
-		writeSensorData(this->textBoxPhotoDistance, Read16SP2());
-		writeSensorData(this->textBoxGoalDetector, serialPort2->ReadByte());
-		//robot position coordinates
+		try
+		{
+			//receive order: front Left IR, back Left IR, right IR, front IR,  gyro, distance photo, goaldetect IR
+			writeSensorData(this->textBoxLeftIRFront, serialPort2->ReadByte());
+			writeSensorData(this->textBoxLeftIRRear, serialPort2->ReadByte());
+			//writeSensorData(this->textBoxIRLeft, serialPort2->ReadByte());
+			writeSensorData(this->textBoxIRRight, serialPort2->ReadByte());
+			writeSensorData(this->textBoxIRFront, serialPort2->ReadByte());
+			writeSensorData(this->textBoxGyro, Read16SP2());
+			writeSensorData(this->textBoxPhotoDistance, Read16SP2());
+			writeSensorData(this->textBoxGoalDetector, serialPort2->ReadByte());
+			//robot position coordinates
 
-		readHeader = true;
+			readHeader = true;
+		}
+		catch (System::IO::IOException^)
+		{
+			//do nothing
+		}
 	}
 			 ///When data is recieved via bluetooth, the first byte is read as a header char that determines what to do with the received data
 	private: System::Void serialPort2_DataReceived(System::Object^  sender, System::IO::Ports::SerialDataReceivedEventArgs^  e) {
-		if (readHeader) {
+		if (true) {
 			try
 			{
 				char header = serialPort2->ReadByte();
+
 				switch (header)
 				{
 				case 'r':
@@ -1272,6 +1295,7 @@ namespace CppWinForm1 {
 					//writeRecieved("Map update recieved");
 					ReadMap();
 					Sleep(10);
+					paintMap();
 					panelMapRecieved->BackColor = Color::Gainsboro;
 					//map data
 					break;
