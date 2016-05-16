@@ -1,37 +1,38 @@
 /*
- * STYR.c
- *
- * Created: 4/14/2016 2:32:45 PM
- *  Author: marha996
- */ 
+* STYR.c
+*
+* Created: 4/14/2016 2:32:45 PM
+*  Author: marha996
+*/
 
- #define F_CPU 1842000UL
- #include <avr/io.h>
- #include <avr/delay.h>
- #include <util/twi.h>
- #include <avr/interrupt.h>
- 
- //command from comm
- volatile uint8_t kommData = 'S';
- 
- //Sensor data
- volatile uint8_t IR_sens_left = 0x0;
- volatile uint8_t IR_sens_back_left = 0x0;
- volatile uint8_t  IR_sens_right = 0x0;
- volatile uint8_t IR_sens_front = 0x0;
- volatile uint8_t Gyro_sens = 0x0;
- volatile uint16_t Photo_distance= 0x0;
- volatile uint8_t ir_detected = 0x0;
- 
- volatile uint8_t ControlReady = 0xAA;
- //Speed
- uint16_t speedPD = 0x0FF;
- uint16_t speed = 0x1FF;
- 
-  //Interrupt bus
-  ISR(TWI_vect){
+#define F_CPU 1842000UL
+#include <avr/io.h>
+#include <avr/delay.h>
+#include <util/twi.h>
+#include <avr/interrupt.h>
+
+//command from comm
+volatile uint8_t kommData = 'S';
+
+//Sensor data
+volatile uint8_t IR_sens_left = 0x0;
+volatile uint8_t IR_sens_back_left = 0x0;
+volatile uint8_t  IR_sens_right = 0x0;
+volatile uint8_t IR_sens_front = 0x0;
+volatile uint16_t Gyro_sens = 0x0;
+volatile uint16_t Photo_distance= 0x0;
+volatile uint8_t ir_detected = 0x0;
+
+volatile uint8_t ControlReady = 0xAA;
+//Speed
+uint16_t speedPD = 0x155;
+uint16_t speed = 0x1FF;
+uint16_t Gyro_ref = 0x0;
+
+//Interrupt bus
+ISR(TWI_vect){
 	
-	//Disable interrupts while receiving data to bus	
+	//Disable interrupts while receiving data to bus
 	cli();
 	
 	//If this module was addressed and "ack" was not sent
@@ -48,72 +49,85 @@
 	
 	//Wait for data
 	while(!(TWCR & (1<<TWINT)));
-		  
+	
 	//If "ack" was not transmitted release bus control
 	if ((TWSR & 0xF8) != 0x80)
 	{
-			//release control of the bus, enable interrupts again and exit vector
-			TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
-			sei();
-			return;
+		//release control of the bus, enable interrupts again and exit vector
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		sei();
+		return;
 	}
 	
 	//Call receive functions
 	if (TWDR == 0x10) {
 		TWIRecieveFromCom();
 	}
-	else if(TWDR == 0x20) 
+	else if(TWDR == 0x20)
 	{
 		TWIRecieveFromSens();
 	}
 
 	//Enable interrupts
 	sei();
-  }
-  
-  //Initierar bussen
-  void TWIInit(void) {
-	  
-	  //Globalt avbrott aktviverat
-	  sei();
-	  
-	  //Sätter SCL hastigheten
-	  TWSR = (0<<TWPS0)|(0<<TWPS1) ; //Sätter prescaler värdet till 1
-	  TWBR = 0x00; //Sätter bit rate registry till 12
-	  
-	  TWCR = (1<<TWEN)|(1<<TWEA)|(1<<TWIE);
-	  
-	  //Slave addresses
-	  //Kommmudul: 0x10
-	  //Sensormodul: 0x20
-	  //Styrmodul: 0x40
-	  
-	  TWAR = 0x40;
-  }
-  
-  void init_pwm()
-   {
-	   DDRD = 0b00110011; // PD0, PD1 Utångar, PD4,PD5 utgångar (enable OCR1A/B)
-	   OCR1A = 0x0;
-	   OCR1B = 0x0;
-	   PORTD = (1<<PORTD0)|(0<<PORTD1); // DIR_RIGHT Direction framåt, DIR_LEFT framåt
-	   TCCR1A |= (1<<COM1A1)| (0<<COM1A0)|(1<<COM1B1)|(0<<COM1B0)|(1<<WGM10)|(1<<WGM11); // Sätter den i fast PWM-mode 10 bit.
-	   TCCR1B |= (0<<WGM13)|(1<<WGM12)|(1<<CS10)|(0<<CS12); // Noninverted med ingen prescaled klocka.
-   }
-   
-  void init_pwm_claw(void)
-    {
-	    OCR0 = 0x1A;
-	    TCCR0 = (1<<WGM01)|(1<<WGM00)|(1<<COM01)|(1<<CS01)|(1<<CS00);
-	    DDRB = (1<<PORTB3);
-	    
-	    OCR2 = 0x3A;
-	    TCCR2 = (1<<WGM21)|(1<<WGM20)|(1<<COM21)|(1<<CS21)|(1<<CS20);
-	    DDRD |= (1<<PORTD7);
-    }
+}
+
+//Initierar bussen
+void TWIInit(void) {
 	
+	//Globalt avbrott aktviverat
+	sei();
+	
+	//Sätter SCL hastigheten
+	TWSR = (0<<TWPS0)|(0<<TWPS1) ; //Sätter prescaler värdet till 1
+	TWBR = 0x00; //Sätter bit rate registry till 12
+	
+	TWCR = (1<<TWEN)|(1<<TWEA)|(1<<TWIE);
+	
+	//Slave addresses
+	//Kommmudul: 0x10
+	//Sensormodul: 0x20
+	//Styrmodul: 0x40
+	
+	TWAR = 0x40;
+}
+
+void init_pwm()
+{
+	DDRD = 0b00110011; // PD0, PD1 Utångar, PD4,PD5 utgångar (enable OCR1A/B)
+	OCR1A = 0x0;
+	OCR1B = 0x0;
+	PORTD = (1<<PORTD0)|(0<<PORTD1); // DIR_RIGHT Direction framåt, DIR_LEFT framåt
+	TCCR1A |= (1<<COM1A1)| (0<<COM1A0)|(1<<COM1B1)|(0<<COM1B0)|(1<<WGM10)|(1<<WGM11); // Sätter den i fast PWM-mode 10 bit.
+	TCCR1B |= (0<<WGM13)|(1<<WGM12)|(1<<CS10)|(0<<CS12); // Noninverted med ingen prescaled klocka.
+}
+
+void gyro_init(void)
+{
+	uint16_t Gyro_sum = 0x0;
+	//Calculate a gyro reference, a mean of 200 early gyro values
+	for(int i = 1; i < 200; i++)
+	{
+		Gyro_sum += Gyro_sens;
+		_delay_ms(2);
+	}
+	Gyro_ref = Gyro_sum / 200;
+	
+}
+
+void init_pwm_claw(void)
+{
+	OCR0 = 0x1A;
+	TCCR0 = (1<<WGM01)|(1<<WGM00)|(1<<COM01)|(1<<CS01)|(1<<CS00);
+	DDRB = (1<<PORTB3);
+	
+	OCR2 = 0x3A;
+	TCCR2 = (1<<WGM21)|(1<<WGM20)|(1<<COM21)|(1<<CS21)|(1<<CS20);
+	DDRD |= (1<<PORTD7);
+}
+
 void TWIStart(void) {
-	TWCR = (1<<TWSTA)|(1<<TWINT)|(1<<TWEN); //Skickar startbit, sätter avbrottsflaggan, avaktiverar avbrott, aktiverar bussen
+	TWCR = (1<<TWSTA)|(1<<TWINT)|(0<<TWIE)|(1<<TWEN); //Skickar startbit, sätter avbrottsflaggan, avaktiverar avbrott, aktiverar bussen
 	while (!(TWCR & (1<<TWINT)));  //Väntar på att start-signalen ska skickas iväg ifall bussen är upptagen t.ex.
 }
 
@@ -124,7 +138,7 @@ void TWIStop(void) {
 
 void TWISend(uint8_t data) {
 	TWDR = data; //Save data to register
-	TWCR = (1<<TWINT)|(1<<TWEN); //Send data
+	TWCR = (0<<TWSTA)|(1<<TWINT)|(1<<TWEN); //Send data
 	while (!(TWCR & (1<<TWINT))); //Wait for "ack"-bit
 }
 
@@ -151,24 +165,20 @@ void TWITransmitData(uint8_t data) {
 	//Check if not right
 	if((TWSR & 0xF8) != 0x18) {
 		
-		TWIStop(); //release bus control
-		sei();
-		return;
+		//Check if arbitration is lost
+		if ((TWSR & 0xF8) == 0x38) {
+			TWIStop(); //release bus control
+			sei();
+			return;
+		}
 		
-		////Check if arbitration is lost
-		//if ((TWSR & 0xF8) == 0x38) {
-			//TWIStop(); //release bus control
-			//sei();
-			//return;
-		//}
-		//
-		////"not ack" received
-		//if ((TWSR & 0xF8) == 0x20) {
-			//
-			//TWIStop(); //release bus control
-			//sei();
-			//return;
-		//}
+		//"not ack" received
+		if ((TWSR & 0xF8) == 0x20) {
+			
+			TWIStop(); //release bus control
+			sei();
+			return;
+		}
 	}
 	
 	
@@ -202,34 +212,34 @@ void TWITransmitData(uint8_t data) {
 	
 	ControlReady = 0xAA;
 }
-  
- //Ta emot data från Kommodulen
- void TWIRecieveFromCom() {
- 	
+
+//Ta emot data från Kommodulen
+void TWIRecieveFromCom() {
+	
 	//Ready to receive new data
- 	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
- 
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
 	//Waiting for data
- 	while(!(TWCR & (1<<TWINT))); 
- 	
- 	//Data not received, 'not ack' was sent
- 	if ((TWSR & 0xF8) != 0x80) {
- 		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
- 		return;
- 	}
- 	
-	 //data received saved
- 	kommData = TWDR;
- 
- 	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
- 	
-	 //waiting for stop condition
- 	while(!(TWCR & (1<<TWINT))); 
- 	
-	 //Release bus control
- 	TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
- }
- 
+	while(!(TWCR & (1<<TWINT)));
+	
+	//Data not received, 'not ack' was sent
+	if ((TWSR & 0xF8) != 0x80) {
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+	//data received saved
+	kommData = TWDR;
+	
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	//waiting for stop condition
+	while(!(TWCR & (1<<TWINT)));
+	
+	//Release bus control
+	TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+}
+
 uint16_t Recieve16Data(void) {
 	
 	//Ready to receive next data
@@ -268,7 +278,7 @@ uint8_t Recieve8Data(void) {
 	
 	//Ready to receive next data
 	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
-		
+	
 	//Wait for data
 	while(!(TWCR & (1<<TWINT)));
 
@@ -278,13 +288,14 @@ uint8_t Recieve8Data(void) {
 	{
 		return 0;
 	}
-		
+	
 	return TWDR;
 }
- 
- void TWIRecieveFromSens(void) {
- 
+
+void TWIRecieveFromSens(void) {
+	
 	//Get the values from the bus
+	
 	
 	IR_sens_left = Recieve8Data();
 	
@@ -322,15 +333,14 @@ uint8_t Recieve8Data(void) {
 		return;
 	}
 	
-	Gyro_sens = Recieve8Data();
-	
+	Gyro_sens = Recieve16Data();
 	// if "ack" was not sent
 	if ((TWSR & 0xF8) != 0x80)
 	{
 		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
 		return;
 	}
-	
+
 	Photo_distance = Recieve16Data();
 	
 	// if "ack" was not sent
@@ -339,6 +349,7 @@ uint8_t Recieve8Data(void) {
 		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
 		return;
 	}
+	
 	
 	ir_detected = Recieve8Data();
 	
@@ -358,360 +369,441 @@ uint8_t Recieve8Data(void) {
 	//Release bus control
 	TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
 	
- }
- 
- void forward(unsigned int speed_right, unsigned int speed_left)
- {
- 	OCR1A = speed_left; // Sätter hastighet på (som andel av 0x03ff)
- 	OCR1B = speed_right; // Sätter hastighet på (som andel av 0x03ff)
- 	PORTD |= (1<<PORTD0); // DIR_RIGHT Direction framåt
- 	PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
- }
- 
- void backward(unsigned int speed_right, unsigned int speed_left)
- {
- 	OCR1A = speed_left; // Sätter hastighet på (som andel av 0x03ff)
- 	OCR1B = speed_right; // Sätter hastighet på (som andel av 0x03ff)
- 	PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
- 	PORTD |= (1<<PORTD1); // DIR_LEFT bakåt
- }
- 
- void stop()
- {
- 	OCR1A = 0x0; // Sätter hastighet noll på
- 	OCR1B = 0x0; // Sätter hastighet noll på
- }
- 
- void turn_left(unsigned int speed)
- {
- 	PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
- 	PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
- 	OCR1A = speed;
- 	OCR1B = speed;
- }
- 
- void rotate_90_left(void){
-	 
-	 //left-wise (anti-clock) rotation increases gyro
-	 PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
-	 PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
-	 OCR1A = speed;
-	 OCR1B = speed;
-	 
-	 uint16_t sum_velocity = 0x0;
- 
-	 while(sum_velocity < 0xBD0)
-	 {
-		 uint8_t gyro = abs(Gyro_sens - 0xAB)/3;
-		 sum_velocity += gyro;
-		 _delay_ms(2);
-	 }
-	 stop();
-	 
-	 kommData = 'S';
- } 
- 
-void rotate_90_right(void){
- 
- //left-wise (anti-clock) rotation increases gyro
- PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
- PORTD |= (1<<PORTD1); // DIR_LEFT framåt
- OCR1A = speed;
- OCR1B = speed;
- 
- uint16_t sum_velocity = 0x0;
- 
- while(sum_velocity < 0xBD0)
- {
-	 uint8_t gyro = abs(Gyro_sens - 0xAB)/3;
-	 sum_velocity += gyro;
-	 _delay_ms(2);
- }
- stop();
- 
- kommData = 'S';	
-}
- 
-void rotate_180(void){
-	rotate_90_left();
-	rotate_90_left();
 }
 
- void turn_right(unsigned int speed)
- {
- 	PORTD |= (1<<PORTD0);
- 	PORTD |= (1<<PORTD1);
- 	OCR1A = speed;
- 	OCR1B = speed;
- }
- 
- void lowerClaw(void)
- {
-	 //Min 0x20
-	 OCR2 = 0x3A;
-	 
- }
- 
- void higherClaw(void)
- {
-	 //Max 0x60
-	 OCR2 = 0x60;
-	 
- }
- 
- void openClaw(void)
- {
-	 //Min 0x10
-	 OCR0 = 0x1A;
- }
- 
- void closeClaw(void)
- {
-	 //Max 0x4A
-	 OCR0 = 0x4A;
- }
-  
- void pd_control(void){
-	   
-	   uint8_t sens_back_left;
-	   uint8_t sens_front_left;
-	   int k_p = 35;
-	   uint8_t p_term;
-	   uint8_t ref_value = 0x32;
-	   uint8_t error = 0x0;
-	   
-	   uint8_t k_d = 45;
-	   uint8_t d_term;
-	   
-	   uint8_t pd_term;
-	   
-	   PORTD |= (1<<PORTD0); // DIR_RIGHT Direction framåt
-	   PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
-	   OCR1A = speedPD;
-	   OCR1B = speedPD;
-	   
-	   while (1){
-		   if(kommData != 'p') return;
-		   //Update sensor values
-		   sens_front_left = IR_sens_left;
-		   sens_back_left = IR_sens_back_left * 1.1;
-		   
-		   if (sens_front_left < ref_value) {
-			   //to far to the right
-			   //increase right speed
-			   
-			   error = ref_value - sens_front_left;
-			   
-			   //p-term:
-			   p_term = k_p * (error / 4);
-			   
-			   //d-term:
-			   if (sens_front_left < sens_back_left) {
-				   //incline from left wall
-				   //i.e. increase right speed
-				   d_term = k_d * ((sens_back_left - sens_front_left) / 4);
-				   pd_term = p_term + d_term;
-				   
-			   }else{
-				   //incline towards left wall
-				   //i.e. decrease right speed
-				   d_term = k_d * ((sens_front_left - sens_back_left) / 4);
-				   if ( d_term > p_term) d_term = p_term;
-				   pd_term = p_term - d_term;
-			   }
-			   
-			   if (pd_term > 0x00FF) pd_term = 0x00FF;
-			   OCR1B = speedPD - pd_term; //left
-			   OCR1A = speedPD + pd_term; //right
-			   
-			   } else {
-			   //to far to the left
-			   //increase left speed
-			   error = sens_front_left - ref_value;
-			   
-			   //p-term:
-			   p_term = k_p * (error / 4);
-			   
-			   //d-term:
-			   if (sens_front_left < sens_back_left) {
-				   //incline away from left wall
-				   //i.e. decrease left speed
-				   d_term = k_d * (( sens_back_left - sens_front_left) / 4);
-				   if ( d_term > p_term) d_term = p_term;
-				   pd_term = p_term - d_term;
-				   
-				   }else{
-				   //incline towards left wall
-				   //i.e. increase left speed
-				   d_term = k_d * ( (sens_front_left - sens_back_left) / 4);
-				   pd_term = p_term + d_term;
-			   }
-			   
-			   if (pd_term > 0x00FF) pd_term = 0x00FF;
-			   OCR1B = speedPD + pd_term; //left
-			   OCR1A = speedPD - pd_term; //right
-		   }
-		   
-	   }
-   }
-   
- void RobotDance(void)
- {
-	 forward(0x1FF,0x1FF);
-	 _delay_ms(500);
-	 stop();
-	 rotate_180();
-	 forward(0x1FF,0x1FF);
-	 _delay_ms(500);
-	 stop();
-	 rotate_180();
-	 higherClaw();
-	 _delay_ms(500);
-	 closeClaw();
-	 _delay_ms(500);
-	 openClaw();
-	 lowerClaw();
-	 _delay_ms(500);
-	 closeClaw();
-	 _delay_ms(500);
-	 openClaw();
-	 _delay_ms(500);
-	 higherClaw();
-	 closeClaw();
-	 rotate_180();
-	 rotate_180();
-	 lowerClaw();
-	 _delay_ms(500);
-	 closeClaw();
- }
- 
- void shortForward(uint16_t i)
- { 
-	 uint16_t distance = Photo_distance;
-	 forward(speedPD, speedPD);
+void forward(unsigned int speed_right, unsigned int speed_left)
+{
+	OCR1A = speed_left; // Sätter hastighet på (som andel av 0x03ff)
+	OCR1B = speed_right; // Sätter hastighet på (som andel av 0x03ff)
+	PORTD |= (1<<PORTD0); // DIR_RIGHT Direction framåt
+	PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
+}
+
+void backward(unsigned int speed_right, unsigned int speed_left)
+{
+	OCR1A = speed_left; // Sätter hastighet på (som andel av 0x03ff)
+	OCR1B = speed_right; // Sätter hastighet på (som andel av 0x03ff)
+	PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
+	PORTD |= (1<<PORTD1); // DIR_LEFT bakåt
+}
+
+void stop()
+{
+	OCR1A = 0x0; // Sätter hastighet noll på
+	OCR1B = 0x0; // Sätter hastighet noll på
+}
+
+void turn_left(unsigned int speed)
+{
+	PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
+	PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
+	OCR1A = speed;
+	OCR1B = speed;
+}
+
+void rotate_90_left(void){
+
+	double pre_gyro = Gyro_sens;
+	double gyro_mid;
+	double gyro;
 	
-	 while(Photo_distance - distance < i);
-	 
-	 if ((kommData = 's') || (kommData = 'k')) kommData = 'S';
- }
- 
- void turnLeftCorridor(void) {
-	 rotate_90_left();
-	 shortForward(0x6);
- }
- 
- void turnRightCorridor(void) {
-	  rotate_90_right();
-	  shortForward(0x6);
- }
- 
- void straightForward(void) 
- {
-	shortForward(0x9);
- }
-   
- void manual_mode(void){
-	 while (1) {
-		 switch(kommData) {
-			 case 'S':	//Stopp
-			 stop();
-			 break;
-			 case 'F':	//Framåt
-			 forward(0x2AA,0x2AA);
-			 break;
-			 case 'B':	//Bakåt
-			 backward(0x2AA,0x2AA);
-			 break;
-			 case 'L':	//Vänster
-			 turn_left(0x2AA);
-			 break;
-			 case 'R':	//Höger
-			 turn_right(0x2AA);
-			 break;
-			 case 'E':	//Fram höger
-			 forward(0x2AA,0x1AA);
-			 break;
-			 case 'Q':	//Fram vänster
-			 forward(0x1AA,0x2AA);
-			 break;
-			 case 'p':
-			 pd_control();
-			 break;
-			 case 'v':
-			 rotate_90_left();
-			 break;
-			 case 'r':
-			 rotate_90_right();
-			 break;
-			 case 'u':
-			 rotate_180();
-			 ControlReady = 0x0;
-			 while(ControlReady != 0xAA)
-			 {
-				 TWITransmitData(0xAA);
-			 }
-			 break;
-			 case 'l':
-			 lowerClaw();
-			 break;
-			 case 'h':
-			 higherClaw();
-			 break;
-			 case 'o':
-			 openClaw();
-			 break;
-			 case 'c':
-			 closeClaw();
-			 break;
-			 case 'd':
-			 RobotDance();
-			 break;
-			 case 's':
-			 turnLeftCorridor();
-			 ControlReady = 0x0;
-			 while(ControlReady != 0xAA)
-			 {
-				 TWITransmitData(0xAA);
-			 }
-			 break;
-			 case 'k':
-			 turnRightCorridor();
-			 ControlReady = 0x0;
-			 while(ControlReady != 0xAA)
-			 {
-				 TWITransmitData(0xAA);
-			 }
-			 break;
-			 case 'b':
-			 shortForward(0x5);
-			 ControlReady = 0x0;
-			 while(ControlReady != 0xAA)
-			 {
-				 TWITransmitData(0xAA);
-			 }
-			 break;
-			 case 'z':
-			 shortForward(0x6);
-			 ControlReady = 0x0;
-			 while(ControlReady != 0xAA)
-			 {
-				 TWITransmitData(0xAA);
-			 }
-			 break;
-			 case 'j':
-			 straightForward();
-			 break;
-			 default:
-			 stop();
-		 }
-	 }
- }   
- 
- int main(void)
- {
- 	init_pwm(); //Sätter grundinställningar för PWM
- 	init_pwm_claw();
- 	TWIInit(); //Initierar bussen
+	//left-wise (anti-clock) rotation increases gyro
+	PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
+	PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
+
+	OCR1A = speed;
+	OCR1B = speed;
+	
+	double sum_velocity = 0;
+	
+	while(sum_velocity < 1150)
+	{
+		TCCR1B = (0<<CS10);
+		double time = TCNT1;
+		
+		gyro = abs(Gyro_sens - 0x7EC)/8;
+		gyro_mid = (pre_gyro + gyro)/2;
+		gyro_mid = gyro_mid * (time/10000);
+		pre_gyro = gyro;
+		
+		sum_velocity = gyro_mid + sum_velocity;
+		
+		TCNT1 = 0x0;
+		TCCR1B =(1<<CS10);
+		_delay_ms(2);
+	}
+	
+	stop();
+	
+	kommData = 'S';
+}
+
+void rotate_90_right(void){
+	
+	double pre_gyro = Gyro_sens;
+	double gyro_mid;
+	double gyro;
+	
+	//left-wise (anti-clock) rotation increases gyro
+	PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
+	PORTD |= (1<<PORTD1); // DIR_LEFT framåt
+	OCR1A = speed;
+	OCR1B = speed;
+	
+	double sum_velocity = 0;
+	
+	while(sum_velocity < 1150)
+	{
+		TCCR1B = (0<<CS10);
+		double time = TCNT1;
+		
+		gyro = abs(Gyro_sens - 0x7EC)/8;
+		gyro_mid = (pre_gyro + gyro)/2;
+		gyro_mid = gyro_mid * (time/10000);
+		pre_gyro = gyro;
+		
+		sum_velocity = gyro_mid + sum_velocity;
+		
+		TCNT1 = 0x0;
+		TCCR1B =(1<<CS10);
+		_delay_ms(2);
+	}
+	stop();
+	
+	kommData = 'S';
+}
+
+void rotate_180(void){
+	double pre_gyro = Gyro_sens;
+	double gyro_mid;
+	double gyro;
+	
+	//left-wise (anti-clock) rotation increases gyro
+	PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
+	PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
+
+	OCR1A = speed;
+	OCR1B = speed;
+	
+	double sum_velocity = 0;
+	
+	while(sum_velocity < 2200)
+	{
+		TCCR1B = (0<<CS10);
+		double time = TCNT1;
+		
+		gyro = abs(Gyro_sens - 0x7EC)/8;
+		gyro_mid = (pre_gyro + gyro)/2;
+		gyro_mid = gyro_mid * (time/10000);
+		pre_gyro = gyro;
+		
+		sum_velocity = gyro_mid + sum_velocity;
+		
+		TCNT1 = 0x0;
+		TCCR1B =(1<<CS10);
+		_delay_ms(2);
+	}
+	
+	stop();
+	
+	kommData = 'S';
+}
+
+void turn_right(unsigned int speed)
+{
+	PORTD |= (1<<PORTD0);
+	PORTD |= (1<<PORTD1);
+	OCR1A = speed;
+	OCR1B = speed;
+}
+
+void lowerClaw(void)
+{
+	//Min 0x20
+	OCR2 = 0x3A;
+	
+}
+
+void higherClaw(void)
+{
+	//Max 0x60
+	OCR2 = 0x60;
+	
+}
+
+void openClaw(void)
+{
+	//Min 0x10
+	OCR0 = 0x1A;
+}
+
+void closeClaw(void)
+{
+	//Max 0x4A
+	OCR0 = 0x4A;
+}
+
+void pd_control(void){
+	
+	uint8_t sens_back_left;
+	uint8_t sens_front_left;
+	int k_p = 135;
+	uint8_t p_term;
+	uint8_t ref_value = 0x36;
+	uint8_t error = 0x0;
+	
+	uint8_t k_d = 175;
+	uint8_t d_term;
+	
+	uint8_t pd_term;
+	
+	PORTD |= (1<<PORTD0); // DIR_RIGHT Direction framåt
+	PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
+	OCR1A = speedPD;
+	OCR1B = speedPD;
+	
+	while (1){
+		if(kommData != 'p') return;
+		//Update sensor values
+		sens_front_left = IR_sens_left;
+		sens_back_left = IR_sens_back_left;
+		
+		if (sens_front_left < ref_value) {
+			//to far to the right
+			//increase right speed
+			
+			error = ref_value - sens_front_left;
+			
+			//p-term:
+			p_term = k_p * (error / 4);
+			
+			//d-term:
+			if (sens_front_left < sens_back_left) {
+				//incline from left wall
+				//i.e. increase right speed
+				d_term = k_d * ((sens_back_left - sens_front_left) / 4);
+				pd_term = p_term + d_term;
+				
+				}else{
+				//incline towards left wall
+				//i.e. decrease right speed
+				d_term = k_d * ((sens_front_left - sens_back_left) / 4);
+				if ( d_term > p_term) d_term = p_term;
+				pd_term = p_term - d_term;
+			}
+			
+			if (pd_term > 0x00FF) pd_term = 0x00FF;
+			OCR1B = speedPD - pd_term; //left
+			OCR1A = speedPD + pd_term; //right
+			
+			} else {
+			//to far to the left
+			//increase left speed
+			error = sens_front_left - ref_value;
+			
+			//p-term:
+			p_term = k_p * (error / 4);
+			
+			//d-term:
+			if (sens_front_left < sens_back_left) {
+				//incline away from left wall
+				//i.e. decrease left speed
+				d_term = k_d * (( sens_back_left - sens_front_left) / 4);
+				if ( d_term > p_term) d_term = p_term;
+				pd_term = p_term - d_term;
+				
+				}else{
+				//incline towards left wall
+				//i.e. increase left speed
+				d_term = k_d * ( (sens_front_left - sens_back_left) / 4);
+				pd_term = p_term + d_term;
+			}
+			
+			if (pd_term > 0x00FF) pd_term = 0x00FF;
+			OCR1B = speedPD + pd_term; //left
+			OCR1A = speedPD - pd_term; //right
+		}
+		
+	}
+}
+
+void RobotDance(void)
+{
+	forward(0x1FF,0x1FF);
+	_delay_ms(500);
+	stop();
+	rotate_180();
+	forward(0x1FF,0x1FF);
+	_delay_ms(500);
+	stop();
+	rotate_180();
+	higherClaw();
+	_delay_ms(500);
+	closeClaw();
+	_delay_ms(500);
+	openClaw();
+	lowerClaw();
+	_delay_ms(500);
+	closeClaw();
+	_delay_ms(500);
+	openClaw();
+	_delay_ms(500);
+	higherClaw();
+	closeClaw();
+	rotate_180();
+	rotate_180();
+	lowerClaw();
+	_delay_ms(500);
+	closeClaw();
+}
+
+void shortForward(uint16_t i)
+{
+	uint16_t distance = Photo_distance;
+	forward(speedPD, speedPD);
+	
+	while(Photo_distance - distance < i);
+	
+	if ((kommData = 's') || (kommData = 'k')) kommData = 'S';
+}
+
+void turnLeftCorridor(void) {
+	rotate_90_left();
+	shortForward(0xD);
+}
+
+void turnRightCorridor(void) {
+	rotate_90_right();
+	shortForward(0xD);
+}
+
+void straightForward(void)
+{
+	shortForward(0x10);
+}
+
+void manual_mode(void){
+	while (1) {
+		switch(kommData) {
+			case 'S':	//Stopp
+			stop();
+			break;
+			case 'F':	//Framåt
+			forward(0x2AA,0x2AA);
+			break;
+			case 'B':	//Bakåt
+			backward(0x2AA,0x2AA);
+			break;
+			case 'L':	//Vänster
+			turn_left(0x2AA);
+			break;
+			case 'R':	//Höger
+			turn_right(0x2AA);
+			break;
+			case 'E':	//Fram höger
+			forward(0x2AA,0x1AA);
+			break;
+			case 'Q':	//Fram vänster
+			forward(0x1AA,0x2AA);
+			break;
+			case 'p':
+			pd_control();
+			break;
+			case 'v':
+			rotate_90_left();
+			ControlReady = 0x0;
+			while(ControlReady != 0xAA)
+			{
+				TWITransmitData(0xAA);
+			}
+			break;
+			case 'r':
+			rotate_90_right();
+			ControlReady = 0x0;
+			while(ControlReady != 0xAA)
+			{
+				TWITransmitData(0xAA);
+			}
+			break;
+			case 'u':
+			rotate_180();
+			ControlReady = 0x0;
+			while(ControlReady != 0xAA)
+			{
+				TWITransmitData(0xAA);
+			}
+			break;
+			case 'l':
+			lowerClaw();
+			break;
+			case 'h':
+			higherClaw();
+			break;
+			case 'o':
+			openClaw();
+			break;
+			case 'c':
+			closeClaw();
+			break;
+			case 'd':
+			RobotDance();
+			break;
+			case 's':
+			turnLeftCorridor();
+			ControlReady = 0x0;
+			while(ControlReady != 0xAA)
+			{
+				TWITransmitData(0xAA);
+			}
+			break;
+			case 'k':
+			turnRightCorridor();
+			ControlReady = 0x0;
+			while(ControlReady != 0xAA)
+			{
+				TWITransmitData(0xAA);
+			}
+			break;
+			case 'b':
+			shortForward(0xA);
+			ControlReady = 0x0;
+			while(ControlReady != 0xAA)
+			{
+				TWITransmitData(0xAA);
+			}
+			break;
+			case 'z':
+			shortForward(0xC);
+			ControlReady = 0x0;
+			while(ControlReady != 0xAA)
+			{
+				TWITransmitData(0xAA);
+			}
+			break;
+			case 'j':
+			shortForward(0x6);
+			ControlReady = 0x0;
+			while(ControlReady != 0xAA)
+			{
+				TWITransmitData(0xAA);
+			}
+			break;
+			case 'f':
+			forward(speedPD,speedPD);
+			break;
+			default:
+			stop();
+		}
+	}
+}
+
+int main(void)
+{
+	_delay_ms(100);
+	init_pwm(); //Sätter grundinställningar för PWM
+	init_pwm_claw();
+	TWIInit(); //Initierar bussen
+	gyro_init();
 	manual_mode();
 	
- }
+}
