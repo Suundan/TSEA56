@@ -577,6 +577,26 @@ void deadEnd(void)
 	goForward();
 }
 
+void rotate(void) {
+	TWITransmitData('u');
+	ControlReady = 0;
+	
+	//Change direction
+	if (rowDir != 0)
+	{
+		colDir = 0;
+		rowDir = -rowDir;
+	}
+	else
+	{
+		rowDir = 0;
+		colDir = -colDir;
+	}
+	
+	while(ControlReady != 0xAA);
+	refDist = Photo_distance;
+	
+}
 //Goes forty centimeters forward. Uses P control if possible
 void goForty()
 {
@@ -638,7 +658,7 @@ uint8_t leftIsFree(volatile uint8_t coords[2]){
 uint8_t frontIsFree(volatile uint8_t coords[2])
 {
 	//If it's open in the front
-	if (IR_sens_front < 0x23)
+	if (IR_sens_front < 0x30)
 	{
 		//If it's uncharted, make it open
 		if (mapArray[coords[0]][coords[1]] == 'u')
@@ -912,7 +932,7 @@ int goTo(uint8_t goToChar)
 						if (wantedRowDir == -1) rotateRight();
 						else rotateLeft();
 					}
-					else deadEnd();
+					else rotate();
 				}
 				else
 				{
@@ -921,7 +941,7 @@ int goTo(uint8_t goToChar)
 						if (wantedRowDir == -1) rotateLeft();
 						else rotateRight();
 					}
-					else deadEnd();
+					else rotate();
 				}
 			}
 			else if (wantedRowDir != rowDir)
@@ -939,7 +959,7 @@ int goTo(uint8_t goToChar)
 						else rotateLeft();
 					}
 				}
-				else deadEnd();
+				else rotate();
 			}
 			
 			goForty();
@@ -1075,13 +1095,9 @@ void check_dist(){
 		//Update robot position
 		roboPos[0] = roboPos[0] + rowDir;
 		roboPos[1] = roboPos[1] + colDir;
-		TWITransmitData('S');
 		sendSensorData();
 		sendMap();
-		
 		refDist = distance;
-		
-		TWITransmitData('p');
 		
 	}
 }
