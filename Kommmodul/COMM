@@ -509,15 +509,15 @@ void turnRight(){
 void deadEnd(void)
 {
 	//Rotate 180 degrees
-	uint8_t distance = Photo_distance;
+	uint16_t distance = Photo_distance;	
 	TWITransmitData('u');
 	ControlReady = 0x0;
 	
 	//Check if a square has been passed
 	if (distance - refDist > 10)
-	{
+	{	
 		//Update map if it is not a decision point
-		if ((mapArray[roboPos[0]][roboPos[1]] != 'd') || (mapArray[roboPos[0]][roboPos[1]] != 'g') )
+		if ((mapArray[roboPos[0]][roboPos[1]] != 'd') || (mapArray[roboPos[0]][roboPos[1]] != 'g') || (mapArray[roboPos[0]][roboPos[1]] != 's'))
 		{
 			mapArray[roboPos[0]][roboPos[1]] = 'c';
 		}
@@ -564,13 +564,14 @@ void deadEnd(void)
 		colDir = -colDir;
 	}
 	
-	//Send the new updated map
-	sendMap();
-	
 	//Wait for control module to finish
 	while(ControlReady != 0xAA);
 	
-	refDist = Photo_distance - 2;
+	refDist = Photo_distance - 3;
+	
+	//Send the new updated map
+	sendMap();
+	sendSensorData();
 	
 	//Move forward
 	goForward();
@@ -746,6 +747,7 @@ void rotateLeft(void)
 
 void rotateRight(void)
 {
+	TWITransmitData('r');
 	ControlReady = 0x0;
 	
 	//Update direction
@@ -836,6 +838,8 @@ int goTo(uint8_t goToChar)
 		if (foundO) break;
 		++floodingRound;
 	}
+	
+	sendMap();
 	
 	//Saves all the coordinates in the route from the robot to the found goToChar (on the condition an goToChar has been found) by starting from the goToChar
 	// and searching for adjacent coordinates with lower flooding numbers.
@@ -960,7 +964,7 @@ void controlDecision(){
 		ControlReady = 0x0;
 		
 		//Update map
-		if ((mapArray[roboPos[0]][roboPos[1]] != 'd') || (mapArray[roboPos[0]][roboPos[1]] != 'g'))
+		if ((mapArray[roboPos[0]][roboPos[1]] != 'd') || (mapArray[roboPos[0]][roboPos[1]] != 'g') || (mapArray[roboPos[0]][roboPos[1]] != 's'))
 		{
 			mapArray[roboPos[0]][roboPos[1]] = 'c';
 		}
@@ -1026,24 +1030,21 @@ void controlDecision(){
 	}
 	else
 	{
-		TWITransmitData('S');
-
+		
 		if (goTo('o') == 0)
 		{
 			goTo('s');
 			return;
 		}
 		
-		refDist = Photo_distance;
-		commOpen = 0;
-		while(!commOpen);
+		refDist = Photo_distance - 3;
 		goForward();
 		return;
 	}
-	
 	roboPos[0] = roboPos[0] + rowDir;
 	roboPos[1] = roboPos[1] + colDir;
 	sendMap();
+	sendSensorData();
 	refDist = Photo_distance;
 }
 
@@ -1055,7 +1056,7 @@ void check_dist(){
 	if (distance - refDist > 15)
 	{
 		//Update map, unless we've found the goal
-		if ((mapArray[roboPos[0]][roboPos[1]] != 'g') || (mapArray[roboPos[0]][roboPos[1]] != 'd'))
+		if ((mapArray[roboPos[0]][roboPos[1]] != 'g') || (mapArray[roboPos[0]][roboPos[1]] != 'd') || (mapArray[roboPos[0]][roboPos[1]] != 's'))
 		{
 			mapArray[roboPos[0]][roboPos[1]] = 'c';
 		}
@@ -1074,10 +1075,13 @@ void check_dist(){
 		//Update robot position
 		roboPos[0] = roboPos[0] + rowDir;
 		roboPos[1] = roboPos[1] + colDir;
-		
+		TWITransmitData('S');
+		sendSensorData();
 		sendMap();
 		
 		refDist = distance;
+		
+		TWITransmitData('p');
 		
 	}
 }
@@ -1087,6 +1091,8 @@ int main(void)
 	TWIInit();
 	init_bluetooth();
 	mapInit();
+	
+	int counter = 0;
 	
 	while (1)
 	{
@@ -1120,6 +1126,12 @@ int main(void)
 					deadEnd();
 					goForward();
 				}
+				if (counter == 1000)
+				{
+					sendSensorData();
+					counter = 0;
+				}
+				counter++;
 			}
 		}
 		
