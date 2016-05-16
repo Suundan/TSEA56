@@ -57,7 +57,7 @@ ISR(USART_RXC_vect) {
 	}
 	else
 	{
-		TWITransmitData(UDR);
+		TWITransmitData(temp);
 	}
 }
 
