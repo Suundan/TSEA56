@@ -133,18 +133,9 @@ namespace CppWinForm1 {
 	private: System::Windows::Forms::Label^  labelDecisionPoint;
 	private: System::Windows::Forms::Label^  labelVisited;
 
-
-
-
-
-
-
-
-
-
-
 	private: array<char> ^pc_map;
 	private: System::Windows::Forms::Label^  labelStart;
+	private: System::Windows::Forms::Label^  labelRoute;
 	private: array<char> ^pc_map_new;
 
 	private:
@@ -214,6 +205,7 @@ namespace CppWinForm1 {
 			this->labelDecisionPoint = (gcnew System::Windows::Forms::Label());
 			this->labelVisited = (gcnew System::Windows::Forms::Label());
 			this->labelStart = (gcnew System::Windows::Forms::Label());
+			this->labelRoute = (gcnew System::Windows::Forms::Label());
 			this->flowLayoutPanel1->SuspendLayout();
 			this->flowLayoutPanel2->SuspendLayout();
 			this->flowLayoutPanel3->SuspendLayout();
@@ -801,12 +793,22 @@ namespace CppWinForm1 {
 			// labelStart
 			// 
 			this->labelStart->AutoSize = true;
-			this->labelStart->Location = System::Drawing::Point(681, 178);
+			this->labelStart->Location = System::Drawing::Point(677, 178);
 			this->labelStart->Name = L"labelStart";
 			this->labelStart->Size = System::Drawing::Size(41, 20);
 			this->labelStart->TabIndex = 27;
 			this->labelStart->Text = L"start";
 			this->labelStart->Visible = false;
+			// 
+			// labelRoute
+			// 
+			this->labelRoute->AutoSize = true;
+			this->labelRoute->Location = System::Drawing::Point(677, 198);
+			this->labelRoute->Name = L"labelRoute";
+			this->labelRoute->Size = System::Drawing::Size(46, 20);
+			this->labelRoute->TabIndex = 28;
+			this->labelRoute->Text = L"route";
+			this->labelRoute->Visible = false;
 			// 
 			// PC_Unit
 			// 
@@ -816,6 +818,7 @@ namespace CppWinForm1 {
 			this->AutoSize = true;
 			this->BackColor = System::Drawing::Color::GhostWhite;
 			this->ClientSize = System::Drawing::Size(1025, 589);
+			this->Controls->Add(this->labelRoute);
 			this->Controls->Add(this->labelStart);
 			this->Controls->Add(this->panelSensRecieved);
 			this->Controls->Add(this->panelMapRecieved);
@@ -957,7 +960,6 @@ namespace CppWinForm1 {
 	private: System::Void paintMapBackground()
 	{
 		this->panelMapRecieved->Visible = true;
-		this->modeCheckedListBox->Visible = true;
 		Drawing::SolidBrush ^tmpBrush = gcnew Drawing::SolidBrush(Color::LightBlue);
 		this->bgGraphics->FillRectangle(tmpBrush, mapXCoord - 3, mapYCoord - 3, /*mapWidth + 4*/ mapWidth + 134, mapHeight + 4);
 		int newX = mapXCoord + 32 * mapWidth / (mapCols);
@@ -982,6 +984,7 @@ namespace CppWinForm1 {
 		this->labelDecisionPoint->Visible = true;
 		this->labelVisited->Visible = true;
 		this->labelStart->Visible = true;
+		this->labelRoute->Visible = true;
 		this->labelUncharted->BackColor = Color::LightBlue;
 		this->labelWall->BackColor = Color::LightBlue;
 		this->labelOpen->BackColor = Color::LightBlue;
@@ -990,6 +993,7 @@ namespace CppWinForm1 {
 		this->labelDecisionPoint->BackColor = Color::LightBlue;
 		this->labelVisited->BackColor = Color::LightBlue;
 		this->labelStart->BackColor = Color::LightBlue;
+		this->labelRoute->BackColor = Color::LightBlue;
 	}
 			 ///Sends a String to robot via Bluetooth
 	public: static void send(String ^s)
@@ -1346,8 +1350,8 @@ namespace CppWinForm1 {
 	private: System::Void resetBut_Click(System::Object^  sender, System::EventArgs^  e) {
 		for (int i = 0; i < mapCols * mapRows; ++i)
 		{
-		pc_map[i] = 0;
-		pc_map_new[i] = 0;
+			pc_map[i] = 0;
+			pc_map_new[i] = 0;
 		}
 		this->textBoxGoalDetector->ResetText();
 		this->textBoxLeftIRFront->ResetText();
