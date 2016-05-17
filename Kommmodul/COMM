@@ -509,13 +509,13 @@ void turnRight(){
 void deadEnd(void)
 {
 	//Rotate 180 degrees
-	uint16_t distance = Photo_distance;	
+	uint16_t distance = Photo_distance;
 	TWITransmitData('u');
 	ControlReady = 0x0;
 	
 	//Check if a square has been passed
 	if (distance - refDist > 10)
-	{	
+	{
 		//Update map if it is not a decision point
 		if ((mapArray[roboPos[0]][roboPos[1]] != 'd') && (mapArray[roboPos[0]][roboPos[1]] != 'g') && (mapArray[roboPos[0]][roboPos[1]] != 's'))
 		{
@@ -745,6 +745,19 @@ void findAdjCoords()
 	}
 }
 
+//Clears the numbers from map after flooding is complete
+void clear_flooding()
+{
+	for(uint8_t i = 0; i < MAPROWS; ++i)
+	{
+		for(uint8_t j = 0; j < MAPCOLS; ++j)
+		{
+			if (mapArray[i][j] < 97)
+				mapArray[i][j] = 'c';
+		}
+	}
+}
+
 void rotateLeft(void)
 {
 	TWITransmitData('v');
@@ -788,10 +801,10 @@ void rotateRight(void)
 //"Floods" the map to find the closest decision point with open ('o') adjacent boxes
 int goTo(uint8_t goToChar)
 {
-	uint8_t oCoords[2] = {0,0};
+	uint8_t charCoords[2] = {0,0};
 
 	//Floods map until an open intersection is found
-	uint8_t foundO = 0;							//Has value 1 or 0 depending on weather an O has been found or not
+	uint8_t charFound = 0;							//Has value 1 or 0 depending on weather an O has been found or not
 	uint8_t floodingRound = 1;					//Has the value of number of floodings it has done so far
 	mapArray[roboPos[0]][roboPos[1]] = 0;		//Indicates that flooding starts from the coordinates of the robot
 	
@@ -810,9 +823,9 @@ int goTo(uint8_t goToChar)
 					{
 						if(mapArray[i+1][j] == goToChar)
 						{
-							oCoords[0] = i+1;
-							oCoords[1] = j;
-							foundO = 1;
+							charCoords[0] = i+1;
+							charCoords[1] = j;
+							charFound = 1;
 							break;
 						}
 						mapArray[i+1][j] = floodingRound;
@@ -821,9 +834,9 @@ int goTo(uint8_t goToChar)
 					{
 						if (mapArray[i-1][j] == goToChar)
 						{
-							oCoords[0] = i-1;
-							oCoords[1] = j;
-							foundO = 1;
+							charCoords[0] = i-1;
+							charCoords[1] = j;
+							charFound = 1;
 							break;
 						}
 						mapArray[i-1][j] = floodingRound;
@@ -832,9 +845,9 @@ int goTo(uint8_t goToChar)
 					{
 						if (mapArray[i][j+1] == goToChar)
 						{
-							oCoords[0] = i;
-							oCoords[1] = j+1;
-							foundO = 1;
+							charCoords[0] = i;
+							charCoords[1] = j+1;
+							charFound = 1;
 							break;
 						}
 						mapArray[i][j+1] = floodingRound;
@@ -843,9 +856,9 @@ int goTo(uint8_t goToChar)
 					{
 						if (mapArray[i][j-1] == goToChar)
 						{
-							oCoords[0] = i;
-							oCoords[1] = j-1;
-							foundO = 1;
+							charCoords[0] = i;
+							charCoords[1] = j-1;
+							charFound = 1;
 							break;
 						}
 						mapArray[i][j-1] = floodingRound;
@@ -853,9 +866,10 @@ int goTo(uint8_t goToChar)
 				}
 				
 			}
-			if (foundO) break;
+			if (charFound) break;
 		}
-		if (foundO) break;
+		if (charFound) break;
+		if (floodingRound > 70) break;
 		++floodingRound;
 	}
 	
@@ -863,11 +877,11 @@ int goTo(uint8_t goToChar)
 	
 	//Saves all the coordinates in the route from the robot to the found goToChar (on the condition an goToChar has been found) by starting from the goToChar
 	// and searching for adjacent coordinates with lower flooding numbers.
-	if (foundO)
+	if (charFound)
 	{
 		uint8_t route[floodingRound][2];
-		route[floodingRound-1][0] = oCoords[0]; //Saves the found goToChars row coordinate last in the the route array
-		route[floodingRound-1][1] = oCoords[1]; //Saves the found goToChars column coordinate last in the the route array
+		route[floodingRound-1][0] = charCoords[0]; //Saves the found goToChars row coordinate last in the the route array
+		route[floodingRound-1][1] = charCoords[1]; //Saves the found goToChars column coordinate last in the the route array
 		
 		while(floodingRound > 1)
 		{
@@ -969,8 +983,10 @@ int goTo(uint8_t goToChar)
 			
 			sendMap();
 		}
+		clear_flooding();
 		return 1;
 	}
+	clear_flooding();
 	return 0;
 }
 
