@@ -93,7 +93,8 @@ namespace CppWinForm1 {
 	private: System::Windows::Forms::FlowLayoutPanel^  flowLayoutPanel7;
 	private: System::Windows::Forms::Label^  labelIRGoal;
 	private: System::Windows::Forms::TextBox^  textBoxGoalDetector;
-	private: System::Windows::Forms::Button^  paintRectBut;
+	private: System::Windows::Forms::Button^  resetBut;
+
 
 
 	protected:
@@ -199,7 +200,7 @@ namespace CppWinForm1 {
 			this->textBoxGoalDetector = (gcnew System::Windows::Forms::TextBox());
 			this->panelSensRecieved = (gcnew System::Windows::Forms::Panel());
 			this->panelMapRecieved = (gcnew System::Windows::Forms::Panel());
-			this->paintRectBut = (gcnew System::Windows::Forms::Button());
+			this->resetBut = (gcnew System::Windows::Forms::Button());
 			this->labelUncharted = (gcnew System::Windows::Forms::Label());
 			this->labelOpen = (gcnew System::Windows::Forms::Label());
 			this->labelGoal = (gcnew System::Windows::Forms::Label());
@@ -654,22 +655,22 @@ namespace CppWinForm1 {
 			this->panelMapRecieved->TabIndex = 21;
 			this->panelMapRecieved->Visible = false;
 			// 
-			// paintRectBut
+			// resetBut
 			// 
-			this->paintRectBut->BackColor = System::Drawing::Color::CornflowerBlue;
-			this->paintRectBut->Cursor = System::Windows::Forms::Cursors::Arrow;
-			this->paintRectBut->FlatAppearance->BorderColor = System::Drawing::Color::CornflowerBlue;
-			this->paintRectBut->FlatAppearance->MouseDownBackColor = System::Drawing::Color::RoyalBlue;
-			this->paintRectBut->FlatAppearance->MouseOverBackColor = System::Drawing::Color::DodgerBlue;
-			this->paintRectBut->FlatStyle = System::Windows::Forms::FlatStyle::Flat;
-			this->paintRectBut->ForeColor = System::Drawing::Color::Black;
-			this->paintRectBut->Location = System::Drawing::Point(459, 429);
-			this->paintRectBut->Name = L"paintRectBut";
-			this->paintRectBut->Size = System::Drawing::Size(113, 59);
-			this->paintRectBut->TabIndex = 13;
-			this->paintRectBut->Text = L"Paint rectangle";
-			this->paintRectBut->UseVisualStyleBackColor = false;
-			this->paintRectBut->Click += gcnew System::EventHandler(this, &PC_Unit::paintRectBut_Click);
+			this->resetBut->BackColor = System::Drawing::Color::CornflowerBlue;
+			this->resetBut->Cursor = System::Windows::Forms::Cursors::Arrow;
+			this->resetBut->FlatAppearance->BorderColor = System::Drawing::Color::CornflowerBlue;
+			this->resetBut->FlatAppearance->MouseDownBackColor = System::Drawing::Color::RoyalBlue;
+			this->resetBut->FlatAppearance->MouseOverBackColor = System::Drawing::Color::DodgerBlue;
+			this->resetBut->FlatStyle = System::Windows::Forms::FlatStyle::Flat;
+			this->resetBut->ForeColor = System::Drawing::Color::Black;
+			this->resetBut->Location = System::Drawing::Point(459, 429);
+			this->resetBut->Name = L"resetBut";
+			this->resetBut->Size = System::Drawing::Size(113, 59);
+			this->resetBut->TabIndex = 13;
+			this->resetBut->Text = L"Reset program";
+			this->resetBut->UseVisualStyleBackColor = false;
+			this->resetBut->Click += gcnew System::EventHandler(this, &PC_Unit::resetBut_Click);
 			// 
 			// labelUncharted
 			// 
@@ -736,7 +737,7 @@ namespace CppWinForm1 {
 			// 
 			this->contextMenuStrip1->ImageScalingSize = System::Drawing::Size(24, 24);
 			this->contextMenuStrip1->Name = L"contextMenuStrip1";
-			this->contextMenuStrip1->Size = System::Drawing::Size(61, 4);
+			this->contextMenuStrip1->Size = System::Drawing::Size(74, 4);
 			// 
 			// textBox1
 			// 
@@ -829,7 +830,7 @@ namespace CppWinForm1 {
 			this->Controls->Add(this->labelGoal);
 			this->Controls->Add(this->labelOpen);
 			this->Controls->Add(this->labelUncharted);
-			this->Controls->Add(this->paintRectBut);
+			this->Controls->Add(this->resetBut);
 			this->Controls->Add(this->flowLayoutPanel1);
 			this->Controls->Add(this->keyboardBut);
 			this->Controls->Add(this->commandBox);
@@ -1342,29 +1343,24 @@ namespace CppWinForm1 {
 		}
 	}
 			 ///Creates a "map" to draw an then paints it with the paintmaprect() method
-	private: System::Void paintRectBut_Click(System::Object^  sender, System::EventArgs^  e) {
+	private: System::Void resetBut_Click(System::Object^  sender, System::EventArgs^  e) {
+		for (int i = 0; i < mapCols * mapRows; ++i)
+		{
+		pc_map[i] = 0;
+		pc_map_new[i] = 0;
+		}
+		this->textBoxGoalDetector->ResetText();
+		this->textBoxLeftIRFront->ResetText();
+		this->textBoxLeftIRRear->ResetText();
+		this->textBoxIRRight->ResetText();
+		this->textBoxIRFront->ResetText();
+		this->textBoxGyro->ResetText();
+		this->textBoxPhotoDistance->ResetText();
 
-		char testMap[17][31];
-		for (int i = 0; i < mapRows; i++) {
-			for (int j = 0; j < mapCols; j++)
-				if (round(i / (j + 1)) <= 0) {
-					testMap[i][j] = 'u';
-				}
-				else if (round(i / (j + 1)) <= 3) {
-					testMap[i][j] = 'w';
-				}
-				else {
-					testMap[i][j] = 'o';
-				}
-		}
-		testMap[13][2] = 'g';
-		testMap[11][2] = 'p';
-		Drawing::Pen ^pen = gcnew Drawing::Pen(Color::DarkSlateGray, 3.0);
-		for (int i = 0; i < mapRows; i++) {
-			for (int j = 0; j < mapCols; j++) {
-				paintMapRect(testMap[i][j], i, j);
-			}
-		}
+		this->outPutTextBox->ResetText();
+		this->BluetoothRecievedTextBox->ResetText();
+
+		paintMapBackground();
 	}
 			 ///When clicking the commandBox the commandBox text is erased and the forms acceptButton is set to the sendButton
 	private: System::Void commandBox_Click(System::Object^  sender, System::EventArgs^  e)
