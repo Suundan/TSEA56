@@ -938,16 +938,11 @@ void navigateTo(void)
 		check_dist();
 		
 		//Check if in an intersection
-		if ((IR_sens_left < 0x1C) || (IR_sens_right < 0x1C))
+		if ((IR_sens_left < 0x1C) || (IR_sens_right < 0x1C) || (IR_sens_front > 0x49)
 		{
 			navigateToControl();
 		}
-		//Check if in a dead-end
-		else if (IR_sens_front > 0x49)
-		{
-			deadEnd();
-			goForward();
-		}
+
 	}
 }
 
