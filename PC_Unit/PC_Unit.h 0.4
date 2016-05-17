@@ -143,6 +143,7 @@ namespace CppWinForm1 {
 
 
 	private: array<char> ^pc_map;
+	private: System::Windows::Forms::Label^  labelStart;
 	private: array<char> ^pc_map_new;
 
 	private:
@@ -211,6 +212,7 @@ namespace CppWinForm1 {
 			this->pictureBox1 = (gcnew System::Windows::Forms::PictureBox());
 			this->labelDecisionPoint = (gcnew System::Windows::Forms::Label());
 			this->labelVisited = (gcnew System::Windows::Forms::Label());
+			this->labelStart = (gcnew System::Windows::Forms::Label());
 			this->flowLayoutPanel1->SuspendLayout();
 			this->flowLayoutPanel2->SuspendLayout();
 			this->flowLayoutPanel3->SuspendLayout();
@@ -644,13 +646,13 @@ namespace CppWinForm1 {
 			// 
 			// panelMapRecieved
 			// 
-			this->panelMapRecieved->Visible = false;
 			this->panelMapRecieved->BackColor = System::Drawing::Color::Gainsboro;
 			this->panelMapRecieved->BorderStyle = System::Windows::Forms::BorderStyle::FixedSingle;
 			this->panelMapRecieved->Location = System::Drawing::Point(743, 15);
 			this->panelMapRecieved->Name = L"panelMapRecieved";
 			this->panelMapRecieved->Size = System::Drawing::Size(20, 20);
 			this->panelMapRecieved->TabIndex = 21;
+			this->panelMapRecieved->Visible = false;
 			// 
 			// paintRectBut
 			// 
@@ -734,7 +736,7 @@ namespace CppWinForm1 {
 			// 
 			this->contextMenuStrip1->ImageScalingSize = System::Drawing::Size(24, 24);
 			this->contextMenuStrip1->Name = L"contextMenuStrip1";
-			this->contextMenuStrip1->Size = System::Drawing::Size(74, 4);
+			this->contextMenuStrip1->Size = System::Drawing::Size(61, 4);
 			// 
 			// textBox1
 			// 
@@ -795,6 +797,16 @@ namespace CppWinForm1 {
 			this->labelVisited->Text = L"visited";
 			this->labelVisited->Visible = false;
 			// 
+			// labelStart
+			// 
+			this->labelStart->AutoSize = true;
+			this->labelStart->Location = System::Drawing::Point(681, 178);
+			this->labelStart->Name = L"labelStart";
+			this->labelStart->Size = System::Drawing::Size(41, 20);
+			this->labelStart->TabIndex = 27;
+			this->labelStart->Text = L"start";
+			this->labelStart->Visible = false;
+			// 
 			// PC_Unit
 			// 
 			this->AcceptButton = this->openCOMBut;
@@ -803,6 +815,7 @@ namespace CppWinForm1 {
 			this->AutoSize = true;
 			this->BackColor = System::Drawing::Color::GhostWhite;
 			this->ClientSize = System::Drawing::Size(1025, 589);
+			this->Controls->Add(this->labelStart);
 			this->Controls->Add(this->panelSensRecieved);
 			this->Controls->Add(this->panelMapRecieved);
 			this->Controls->Add(this->labelVisited);
@@ -886,6 +899,7 @@ namespace CppWinForm1 {
 
 		///Paints a test map in the area in the form where the final map is to be painted
 	private: System::Void paintMapRect(char type, int rowIndex, int colIndex) {
+		if (type < 70) type = 'f';
 		switch (type) {
 		case 'o':
 			mapBrush->Color = Color::Aquamarine;
@@ -914,6 +928,18 @@ namespace CppWinForm1 {
 		case 'c':
 			mapBrush->Color = Color::MediumAquamarine;
 			//open and charted 
+			break;
+		case 's':
+			mapBrush->Color = Color::MediumPurple;
+			//start position
+			break;
+		case 'r':
+			mapBrush->Color = Color::Tan;
+			//route
+			break;
+		case 'f':
+			mapBrush->Color = Color::LightGreen;
+			//flooded
 			break;
 		default:
 			mapBrush->Color = Color::Magenta;
@@ -945,6 +971,8 @@ namespace CppWinForm1 {
 		paintMapRect('g', 5, 32);
 		paintMapRect('d', 6, 32);
 		paintMapRect('c', 7, 32);
+		paintMapRect('s', 8, 32);
+		paintMapRect('r', 9, 32);
 		this->labelUncharted->Visible = true;
 		this->labelWall->Visible = true;
 		this->labelOpen->Visible = true;
@@ -952,6 +980,7 @@ namespace CppWinForm1 {
 		this->labelGoal->Visible = true;
 		this->labelDecisionPoint->Visible = true;
 		this->labelVisited->Visible = true;
+		this->labelStart->Visible = true;
 		this->labelUncharted->BackColor = Color::LightBlue;
 		this->labelWall->BackColor = Color::LightBlue;
 		this->labelOpen->BackColor = Color::LightBlue;
@@ -959,6 +988,7 @@ namespace CppWinForm1 {
 		this->labelGoal->BackColor = Color::LightBlue;
 		this->labelDecisionPoint->BackColor = Color::LightBlue;
 		this->labelVisited->BackColor = Color::LightBlue;
+		this->labelStart->BackColor = Color::LightBlue;
 	}
 			 ///Sends a String to robot via Bluetooth
 	public: static void send(String ^s)
