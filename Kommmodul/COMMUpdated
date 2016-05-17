@@ -1,0 +1,1264 @@
+/*
+* COMM.c
+*
+* Created: 4/19/2016 10:39:58 AM
+*  Author: sankl660
+*/
+
+#define F_CPU 1842000UL
+#include <avr/io.h>
+#include <util/twi.h>
+#include <util/delay.h>
+#include <avr/interrupt.h>
+
+//Sensor data
+volatile uint8_t IR_sens_left = 0x0;
+volatile uint8_t IR_sens_back_left = 0x0;
+volatile uint8_t IR_sens_right = 0x0;
+volatile uint8_t IR_sens_front = 0x5;
+volatile uint16_t Gyro_sens = 0x0;
+volatile uint16_t Photo_distance = 0x0;
+volatile uint8_t IR_detector = 0x0;
+
+//Control module ready to receive
+volatile uint8_t ControlReady = 0x0;
+
+//Distance variables
+volatile uint16_t refDist = 0;
+
+//Map variables
+#define MAPROWS 17
+#define MAPCOLS 31
+volatile uint8_t mapArray[MAPROWS][MAPCOLS];	//The internal map
+
+volatile uint8_t roboPos[2];		//Robot position
+volatile uint8_t leftCoords[2];
+volatile uint8_t rightCoords[2];
+volatile uint8_t frontCoords[2];
+volatile uint8_t backCoords[2];
+
+volatile int8_t rowDir;		//Row direction
+volatile int8_t colDir;		//Column direction
+
+void TWITransmitData(uint8_t data);
+void TWIRecieveFromSens(void);
+void TWIRecieveFromControl(void);
+
+//Decision variables
+volatile uint8_t test = 0x0;
+volatile int mapSent = 1;
+volatile int commOpen = 0;
+volatile int coordsFound = 1;
+
+//Interrupt from firefly
+ISR(USART_RXC_vect) {
+	uint8_t temp = UDR;
+	if (temp == 'c')
+	{
+		commOpen = 1;
+	}
+	else
+	{
+		TWITransmitData(temp);
+	}
+}
+
+//Interrupt from TWI-bus
+ISR(TWI_vect){
+	
+	//Disable interrupts while receiving data to bus
+	cli();
+	
+	//If this module was addressed and "ack" was not sent
+	if(((TWSR & 0xF8) != 0x60 ) && ( (TWSR & 0xF8) != 0x68))
+	{
+		//release control of the bus, enable interrupts again and exit vector
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		sei();
+		return;
+	}
+	
+	//Ready to receive data
+	TWCR = (0<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	//Wait for data
+	while(!(TWCR & (1<<TWINT)));
+	
+	//If "ack" was not transmitted release bus control
+	if((TWSR & 0xF8) != 0x80 )
+	{
+		//release control of the bus, enable interrupts again and exit vector
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		sei();
+		return;
+	}
+	
+	//Call receive function
+	if (TWDR == 0x20)
+	{
+		TWIRecieveFromSens();
+	}
+	else if(TWDR == 0x40)
+	{
+		TWIRecieveFromControl();
+	}
+	
+	//Enable interrupts again
+	sei();
+}
+
+//Bluetooth config
+void init_bluetooth()
+{
+	//Set TXD (port1) as out, 0b00000010
+	DDRD = (1<<PORTD1);
+	
+	//Config of baudrate
+	UBRRH = 0x00; //(unsigned char)(ubrr>>8);
+	UBRRL = 0x00; //(unsigned char)ubrr;
+	
+	//Enable send, receive and interrupt
+	UCSRB = (1<<RXEN)|(1<<TXEN)|(1<<RXCIE);
+	
+	//Data format: 8data, 1stop bit ligger som standard
+	UCSRC = (1<<URSEL)|(1<<UCSZ0)|(1<<UCSZ1);
+}
+
+//Bus config
+void TWIInit(void) {
+	
+	//Global interrupt enable
+	sei();
+	
+	//Set SCL speed
+	TWSR = (0<<TWPS0)|(0<<TWPS1); //Prescaler value
+	TWBR = 0x00;  //Bit rate registry to 12
+	
+	//Enable bus, ackbit and interrupt
+	TWCR = (1<<TWEN)|(1<<TWEA)|(1<<TWIE);
+	
+	//Slaveaddress (last bit sould be 0 to disable general call)
+	//Commmudule: 0x10
+	//Sensormodule: 0x21
+	//Styrmodule: 0x41
+	
+	//Set slave address
+	TWAR = 0x10;
+}
+
+//Map initializing
+void mapInit(void){
+	
+	//Initializing all boxes to be uncharted ('u')
+	for(uint8_t i = 0; i < MAPROWS; i++){
+		for (uint8_t j = 0; j < MAPCOLS; j++)
+		{
+			mapArray[i][j] = 'u';
+		}
+	}
+	
+	//The starting point of robot
+	roboPos[0] = 16;
+	roboPos[1] = 15;
+	
+	//Updating surrounding boxes
+	mapArray[15][15] = 'o';		//Open infront of robot
+	mapArray[16][14] = 'w';		//Wall to the left of start position
+	mapArray[16][16] = 'w';		//Wall to the right of start position
+	mapArray[16][15] = 's';		//Start position
+	
+	//Sets the start direction of the robot
+	rowDir = -1;
+	colDir = 0;
+}
+
+//Transmit 8-bit data through Bluetooth
+void bluetooth_transmit(uint8_t data)
+{
+	if (!commOpen) return;
+	
+	//Wait for empty buffer
+	while ( !( UCSRA & (1<<UDRE)) );
+	
+	//Save data to buffer and send
+	UDR = data;
+}
+
+//Send start condition
+void TWIStart(void) {
+	TWCR = (1<<TWSTA)|(1<<TWINT)|(0<<TWIE)|(1<<TWEN);
+	while (!(TWCR & (1<<TWINT)));
+}
+
+//Send stop condition
+void TWIStop(void) {
+	TWCR = (1<<TWSTO)|(1<<TWINT)|(1<<TWIE)|(1<<TWEN)|(1<<TWEA);
+}
+
+//Send the data
+void TWISend(uint8_t data) {
+	TWDR = data; //Save data to register
+	TWCR = (0<<TWSTA)|(1<<TWINT)|(1<<TWEN); //Send data
+	while (!(TWCR & (1<<TWINT))); //Wait for "ack"-bit
+}
+
+//Send 8-bit data to bus
+void TWITransmitData(uint8_t data) {
+	//Disable interrupts while sending data to bus
+	cli();
+	
+	//Send start condition
+	TWIStart();
+	
+	//Check if start is not sent
+	if (((TWSR & 0xF8) != 0x08) && ((TWSR & 0xF8) != 0x10))
+	{
+		TWIStop();
+		TWITransmitData(data); //Resend
+		return;
+	}
+	
+	//Send slave address
+	TWISend(0x40);
+	
+	//Check if not right
+	if((TWSR & 0xF8) != 0x18) {
+		
+		//Check if arbitration is lost
+		if ((TWSR & 0xF8) == 0x38) {
+			TWIStop(); //release bus control
+			TWITransmitData(data); //Resend
+			return;
+		}
+		
+		//"not ack" received
+		if ((TWSR & 0xF8) == 0x20) {
+			
+			TWIStop(); //release bus control
+			TWITransmitData(data); //Resend
+			return;
+		}
+	}
+	
+	//Send header, own address + info
+	TWISend(0x10);
+	
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		TWITransmitData(data); //Resend
+		return;
+	}
+	
+	//Send data
+	TWISend(data);
+	
+	//Data sent, "ack" not received
+	if ((TWSR & 0xF8) != 0x28)
+	{
+		TWIStop(); //release bus control
+		TWITransmitData(data); //Resend
+		return;
+	}
+	
+	//Send stop condition
+	TWIStop();
+	
+	//Enable interrupts again
+	sei();
+}
+
+//Receive 16 bit data
+uint16_t Recieve16Data(void) {
+	
+	//Ready to receive next data
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	//Wait for data
+	while(!(TWCR & (1<<TWINT)));
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		return 0;
+	}
+
+	//Save msb data to int
+	uint16_t data_16 = (TWDR << 8);
+	
+	//Ready to receive next data
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	//Wait for data
+	while(!(TWCR & (1<<TWINT)));
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		return 0;
+	}
+	
+	//Save lsb data to int
+	data_16 |= TWDR;
+	return data_16;
+}
+
+//Receive 8 bit data
+uint8_t Recieve8Data(void) {
+	
+	//Ready to receive next data
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	//Wait for data
+	while(!(TWCR & (1<<TWINT)));
+
+	//If "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		return 0;
+	}
+	
+	return TWDR;
+}
+
+//Receive sensor data
+void TWIRecieveFromSens(void) {
+	
+	//Get the values from the bus
+	IR_sens_left = Recieve8Data();
+	
+	//If "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+	IR_sens_back_left = Recieve8Data();
+	
+	//If "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+	IR_sens_right = Recieve8Data();
+	
+	//If "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+	IR_sens_front = Recieve8Data();
+	
+	//If "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+
+	Gyro_sens = Recieve16Data();
+	//If "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+	
+	Photo_distance = Recieve16Data();
+	//If "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+	IR_detector = Recieve8Data();
+	
+	//If "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+	//Ready to receive stop condition
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	//Wait for stop condition
+	while(!(TWCR & (1<<TWINT)));
+	
+	//Release bus control
+	TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+}
+
+//Receive data from control module
+void TWIRecieveFromControl(void)
+{
+	ControlReady = Recieve8Data();
+	
+	// if "ack" was not sent
+	if ((TWSR & 0xF8) != 0x80)
+	{
+		TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+		return;
+	}
+	
+	//Ready to receive stop condition
+	TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+	
+	//Wait for stop condition
+	while(!(TWCR & (1<<TWINT)));
+	
+	//Release bus control
+	TWCR = (1<<TWIE)|(1<<TWINT)|(1<<TWEN)|(1<<TWEA);
+}
+
+//Send sensor data to PC
+void sendSensorData(void) {
+	bluetooth_transmit('s');
+	bluetooth_transmit(IR_sens_left);
+	bluetooth_transmit(IR_sens_back_left);
+	bluetooth_transmit(IR_sens_right);
+	bluetooth_transmit(IR_sens_front);
+	bluetooth_transmit(Gyro_sens >> 8);
+	bluetooth_transmit(Gyro_sens & 0xFF);
+	bluetooth_transmit(Photo_distance >> 8);
+	bluetooth_transmit(Photo_distance & 0xFF);
+	bluetooth_transmit(IR_detector);
+}
+
+//Send map to PC
+void sendMap(){
+	
+	uint8_t tmp = mapArray[roboPos[0]][roboPos[1]];
+	
+	mapArray[roboPos[0]][roboPos[1]] = 'p';
+	
+	//Makes the PC ready to receive map-data
+	bluetooth_transmit('m');
+	
+	//Send every byte of map
+	for(uint8_t i = 0; i < MAPROWS; i++){
+		for (uint8_t j = 0; j < MAPCOLS; j++)
+		{
+			uint8_t character = mapArray[i][j];
+			bluetooth_transmit(character);
+		}
+	}
+	
+	mapArray[roboPos[0]][roboPos[1]] = tmp;
+	
+	mapSent = 1;
+}
+
+//Go forward, adjusting to wall
+void goForward(){
+	//Go forward, adjust to wall
+	TWITransmitData('p');
+}
+
+//Turns 90 degrees left
+void turnLeft(){
+	//Turn left, 90 degrees
+	TWITransmitData('s');
+	ControlReady = 0x0;
+	
+	//Update direction
+	if (rowDir != 0)
+	{
+		colDir = rowDir;
+		rowDir = 0;
+	}
+	else
+	{
+		rowDir = - colDir;
+		colDir = 0;
+	}
+	
+	while(ControlReady != 0xAA);
+}
+
+//Turns 90 degrees right
+void turnRight(){
+	
+	TWITransmitData('k');
+	ControlReady = 0x0;
+	
+	//Update direction
+	if (rowDir != 0)
+	{
+		colDir = - rowDir;
+		rowDir = 0;
+	}
+	else
+	{
+		rowDir = colDir;
+		colDir = 0;
+	}
+	
+	while(ControlReady != 0xAA);
+}
+
+//Turns 180 degrees
+void deadEnd(void)
+{
+	//Rotate 180 degrees
+	uint16_t distance = Photo_distance;
+	TWITransmitData('u');
+	ControlReady = 0x0;
+	
+	//Check if a square has been passed
+	if (distance - refDist > 10)
+	{
+		//Update map if it is not a decision point
+		if ((mapArray[roboPos[0]][roboPos[1]] != 'd') && (mapArray[roboPos[0]][roboPos[1]] != 'g') && (mapArray[roboPos[0]][roboPos[1]] != 's'))
+		{
+			mapArray[roboPos[0]][roboPos[1]] = 'c';
+		}
+		
+		if (colDir == 0)
+		{
+			if (mapArray[roboPos[0]][roboPos[1]+1] == 'u') mapArray[roboPos[0]][roboPos[1]+1] = 'w';
+			if (mapArray[roboPos[0]][roboPos[1]-1] == 'u') mapArray[roboPos[0]][roboPos[1]-1] = 'w';
+		}
+		else
+		{
+			if (mapArray[roboPos[0]+1][roboPos[1]] == 'u') mapArray[roboPos[0]+1][roboPos[1]] = 'w';
+			if (mapArray[roboPos[0]-1][roboPos[1]] == 'u') mapArray[roboPos[0]-1][roboPos[1]] = 'w';
+		}
+		
+		//move one square ahead
+		roboPos[0] = roboPos[0] + rowDir;
+		roboPos[1] = roboPos[1] + colDir;
+	}
+	
+	//Set walls front of position and next to position
+	if (colDir == 0)
+	{
+		if (mapArray[roboPos[0]][roboPos[1]+1] == 'u') mapArray[roboPos[0]][roboPos[1]+1] = 'w';
+		if (mapArray[roboPos[0]][roboPos[1]-1] == 'u') mapArray[roboPos[0]][roboPos[1]-1] = 'w';
+		if (mapArray[roboPos[0]+rowDir][roboPos[1]] == 'u') mapArray[roboPos[0]+rowDir][roboPos[1]] = 'w';
+	}
+	else
+	{
+		if (mapArray[roboPos[0]+1][roboPos[1]] == 'u') mapArray[roboPos[0]+1][roboPos[1]] = 'w';
+		if (mapArray[roboPos[0]-1][roboPos[1]] == 'u') mapArray[roboPos[0]-1][roboPos[1]] = 'w';
+		if (mapArray[roboPos[0]][roboPos[1]+colDir] == 'u') mapArray[roboPos[0]][roboPos[1]+colDir] = 'w';
+	}
+	
+	//Change direction
+	if (rowDir != 0)
+	{
+		colDir = 0;
+		rowDir = -rowDir;
+	}
+	else
+	{
+		rowDir = 0;
+		colDir = -colDir;
+	}
+	
+	//Wait for control module to finish
+	while(ControlReady != 0xAA);
+	
+	refDist = Photo_distance - 3;
+	
+	//Send the new updated map
+	sendMap();
+	sendSensorData();
+	
+	//Move forward
+	goForward();
+}
+
+void rotate(void) {
+	TWITransmitData('u');
+	ControlReady = 0;
+	
+	//Change direction
+	if (rowDir != 0)
+	{
+		colDir = 0;
+		rowDir = -rowDir;
+	}
+	else
+	{
+		rowDir = 0;
+		colDir = -colDir;
+	}
+	
+	while(ControlReady != 0xAA);
+	refDist = Photo_distance;
+	
+}
+//Goes forty centimeters forward. Uses P control if possible
+void goForty()
+{
+	uint8_t lastSent = 0;
+	
+	refDist = Photo_distance;
+	
+	while(Photo_distance - refDist < 16)
+	{
+		if (IR_sens_left > 0x1C)
+		{
+			//P-control if distance to wall is not too big
+			if (lastSent != 'p')
+			{
+				TWITransmitData('p');
+				lastSent = 'p';
+			}
+		}
+		else
+		{
+			//just go forward without P control if no adjacent wall to the left
+			if (lastSent != 'f')
+			{
+				TWITransmitData('f');
+				lastSent = 'f';
+			}
+		}
+	}
+	
+	TWITransmitData('S');
+	
+}
+
+//Checks if robot has been to the left
+uint8_t leftIsFree(volatile uint8_t coords[2]){
+	//If it's open to the left
+	if (IR_sens_left < 0x1C)
+	{
+		//If it's uncharted to the left, "open" the box
+		if (mapArray[coords[0]][coords[1]] == 'u')
+		{
+			mapArray[coords[0]][coords[1]] = 'o';
+			return 1;
+		}
+		else if (mapArray[coords[0]][coords[1]] == 'o')
+		{
+			return 1;
+		}
+	}
+	//If it's not open to the left, then it's a wall
+	if (mapArray[coords[0]][coords[1]] == 'u')
+	{
+		mapArray[coords[0]][coords[1]] = 'w';
+	}
+	return 0; // Should return 0;
+}
+
+//Checks if robot has been to the front
+uint8_t frontIsFree(volatile uint8_t coords[2])
+{
+	//If it's open in the front
+	if (IR_sens_front < 0x30)
+	{
+		//If it's uncharted, make it open
+		if (mapArray[coords[0]][coords[1]] == 'u')
+		{
+			mapArray[coords[0]][coords[1]] = 'o';
+			return 1;
+		}
+		else if (mapArray[coords[0]][coords[1]] == 'o')
+		{
+			return 1;
+		}
+	}
+	//If it's not open to the front, make it a wall
+	if (mapArray[coords[0]][coords[1]] == 'u')
+	{
+		mapArray[coords[0]][coords[1]] = 'w';
+	}
+	return 0;
+}
+
+//Checks if robot has been to the right
+uint8_t rightIsFree(volatile uint8_t coords[2]){
+	//If it's open to the right
+	if (IR_sens_right < 0x1C)
+	{
+		//If it's uncharted, make it open
+		if (mapArray[coords[0]][coords[1]] == 'u')
+		{
+			mapArray[coords[0]][coords[1]] = 'o';
+			return 1;
+		}
+		else if (mapArray[coords[0]][coords[1]] == 'o')
+		{
+			return 1;
+		}
+	}
+	//If not open to the right, make it a wall
+	if (mapArray[coords[0]][coords[1]] == 'u')
+	{
+		mapArray[coords[0]][coords[1]] = 'w';
+	}
+	return 0;
+}
+
+//Finds the coordinates adjacent to the YI-Bot
+//in order: to the left of, front of, to the right of
+void findAdjCoords()
+{
+	if (rowDir == 1)
+	{
+		leftCoords[0] = roboPos[0];
+		leftCoords[1] = roboPos[1]+1;
+		frontCoords[0] = roboPos[0]+1;
+		frontCoords[1] = roboPos[1];
+		rightCoords[0] = roboPos[0];
+		rightCoords[1] = roboPos[1]-1;
+		backCoords[0] = roboPos[0]-1;
+		backCoords[1] = roboPos[1];
+	}
+	else if (rowDir == -1)
+	{
+		leftCoords[0] = roboPos[0];
+		leftCoords[1] = roboPos[1]-1;
+		frontCoords[0] = roboPos[0]-1;
+		frontCoords[1] = roboPos[1];
+		rightCoords[0] = roboPos[0];
+		rightCoords[1] = roboPos[1]+1;
+		backCoords[0] = roboPos[0]+1;
+		backCoords[1] = roboPos[1];
+	}
+	else if (colDir == 1)
+	{
+		leftCoords[0] = roboPos[0]-1;
+		leftCoords[1] = roboPos[1];
+		frontCoords[0] = roboPos[0];
+		frontCoords[1] = roboPos[1]+1;
+		rightCoords[0] = roboPos[0]+1;
+		rightCoords[1] = roboPos[1];
+		backCoords[0] = roboPos[0];
+		backCoords[1] = roboPos[1]-1;
+	}
+	else
+	{
+		leftCoords[0] = roboPos[0]+1;
+		leftCoords[1] = roboPos[1];
+		frontCoords[0] = roboPos[0];
+		frontCoords[1] = roboPos[1]-1;
+		rightCoords[0] = roboPos[0]-1;
+		rightCoords[1] = roboPos[1];
+		backCoords[0] = roboPos[0];
+		backCoords[1] = roboPos[1]+1;
+	}
+}
+
+void rotateLeft(void)
+{
+	TWITransmitData('v');
+	ControlReady = 0x0;
+	
+	//Update direction
+	if (rowDir != 0)
+	{
+		colDir = rowDir;
+		rowDir = 0;
+	}
+	else
+	{
+		rowDir = - colDir;
+		colDir = 0;
+	}
+	
+	while(ControlReady != 0xAA);
+}
+
+void rotateRight(void)
+{
+	TWITransmitData('r');
+	ControlReady = 0x0;
+	
+	//Update direction
+	if (rowDir != 0)
+	{
+		colDir = - rowDir;
+		rowDir = 0;
+	}
+	else
+	{
+		rowDir = colDir;
+		colDir = 0;
+	}
+	
+	while(ControlReady != 0xAA);
+}
+
+uint8_t navigateToRightFree(uint8_t coords[2]){
+	//If it's open to the right
+	if (IR_sens_right < 0x1C)
+	{
+		if (mapArray[coords[0]][coords[1]] == 'r')
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
+uint8_t navigateToLeftFree(uint8_t coords[2]){
+	//If it's open to the right
+	if (IR_sens_left < 0x1C)
+	{
+		if (mapArray[coords[0]][coords[1]] == 'r')
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
+uint8_t navigateToFrontFree(uint8_t coords[2]){
+	//If it's open to the right
+	if (IR_sens_front < 0x30)
+	{
+		if (mapArray[coords[0]][coords[1]] == 'r')
+		{
+			return 1;
+		}
+	}
+	return 0;
+}
+
+uint8_t navigateToBackFree(uint8_t coords[2]){
+	if (mapArray[coords[0]][coords[1]] == 'r')
+	{
+		return 1;
+	}
+	return 0;
+}
+
+void navigateToControl(void)
+{
+	//check if we moved one square
+	if(Photo_distance - refDist > 5)
+	{
+		TWITransmitData('b');
+		ControlReady = 0x0;
+		
+		//Update map
+		if ((mapArray[roboPos[0]][roboPos[1]] != 'd') && (mapArray[roboPos[0]][roboPos[1]] != 'g') && (mapArray[roboPos[0]][roboPos[1]] != 's'))
+		{
+			mapArray[roboPos[0]][roboPos[1]] = 'c';
+		}
+		
+		roboPos[0] = roboPos[0] + rowDir;
+		roboPos[1] = roboPos[1] + colDir;
+		
+	}
+	else
+	{
+		if(mapArray[roboPos[0]][roboPos[1]-colDir]==0) //the first time it goes in here
+		{
+			//do nothing its already in the middle
+		}
+		else if(mapArray[roboPos[0]-rowDir][roboPos[1]-colDir]=='d')
+		{
+			TWITransmitData('j');
+			ControlReady = 0x0;
+		}
+		else
+		{
+			TWITransmitData('b');
+			ControlReady = 0x0;
+		}
+		
+	}
+	
+	//Update map, this is a decision node
+	mapArray[roboPos[0]][roboPos[1]] = 'd';
+	
+	findAdjCoords();
+	
+	//Wait for robot to enter intersection
+	while(ControlReady != 0xAA);
+	
+	uint8_t leftFree = navigateToLeftFree(leftCoords);
+	uint8_t rightFree = navigateToRightFree(rightCoords);
+	uint8_t frontFree = navigateToFrontFree(frontCoords);
+	uint8_t backFree = navigateToBackFree(backCoords);
+
+	//Send updated map
+	sendMap();
+	
+	if (leftFree)
+	{
+		turnLeft();
+		goForward();
+	}
+	else if (frontFree)
+	{
+		TWITransmitData('z');
+		ControlReady = 0x0;
+		while(ControlReady != 0xAA);
+		goForward();
+	}
+	else if (rightFree)
+	{
+		turnRight();
+		goForward();
+	}
+	else if (backFree)
+	{
+		deadEnd();
+	}
+	else
+	{
+		//At correct position
+		coordsFound = 1;
+		return;
+	}
+	roboPos[0] = roboPos[0] + rowDir;
+	roboPos[1] = roboPos[1] + colDir;
+	sendMap();
+	sendSensorData();
+	refDist = Photo_distance;
+	
+}
+void navigateTo(void)
+{
+	while(1)
+	{
+		if (coordsFound)
+		{
+			return;
+		}
+		check_dist();
+		
+		//Check if in an intersection
+		if ((IR_sens_left < 0x1C) || (IR_sens_right < 0x1C))
+		{
+			navigateToControl();
+		}
+		//Check if in a dead-end
+		else if (IR_sens_front > 0x49)
+		{
+			deadEnd();
+			goForward();
+		}
+	}
+}
+
+//"Floods" the map to find the closest decision point with open ('o') adjacent boxes
+int goTo(uint8_t goToChar)
+{
+	uint8_t oCoords[2] = {0,0};
+
+	//Floods map until an open intersection is found
+	uint8_t foundO = 0;							//Has value 1 or 0 depending on weather an O has been found or not
+	uint8_t floodingRound = 1;					//Has the value of number of floodings it has done so far
+	mapArray[roboPos[0]][roboPos[1]] = 0;		//Indicates that flooding starts from the coordinates of the robot
+	
+	//Flooding
+	while(1)
+	{
+		for(int i = 0; i<17; i++)
+		{
+			for(int j = 0; j<31; j++)
+			{
+				//Checks if box was flooded last round
+				if (mapArray[i][j] == floodingRound - 1)
+				{
+					//Floods adjacent boxes
+					if ((i+1 < 17) && (mapArray[i+1][j] > floodingRound) && (mapArray[i+1][j] != 'w'))
+					{
+						if(mapArray[i+1][j] == goToChar)
+						{
+							oCoords[0] = i+1;
+							oCoords[1] = j;
+							foundO = 1;
+							break;
+						}
+						mapArray[i+1][j] = floodingRound;
+					}
+					if ((i-1 >= 0) && (mapArray[i-1][j] > floodingRound) && (mapArray[i-1][j] != 'w'))
+					{
+						if (mapArray[i-1][j] == goToChar)
+						{
+							oCoords[0] = i-1;
+							oCoords[1] = j;
+							foundO = 1;
+							break;
+						}
+						mapArray[i-1][j] = floodingRound;
+					}
+					if ((j+1 < 31) && (mapArray[i][j+1] > floodingRound) && (mapArray[i][j+1] != 'w'))
+					{
+						if (mapArray[i][j+1] == goToChar)
+						{
+							oCoords[0] = i;
+							oCoords[1] = j+1;
+							foundO = 1;
+							break;
+						}
+						mapArray[i][j+1] = floodingRound;
+					}
+					if ((j-1 >= 0) && (mapArray[i][j-1] > floodingRound) && (mapArray[i][j-1] != 'w'))
+					{
+						if (mapArray[i][j-1] == goToChar)
+						{
+							oCoords[0] = i;
+							oCoords[1] = j-1;
+							foundO = 1;
+							break;
+						}
+						mapArray[i][j-1] = floodingRound;
+					}
+				}
+				
+			}
+			if (foundO) break;
+		}
+		if (foundO) break;
+		++floodingRound;
+	}
+	
+	sendMap();
+	
+	//Saves all the coordinates in the route from the robot to the found goToChar (on the condition an goToChar has been found) by starting from the goToChar
+	// and searching for adjacent coordinates with lower flooding numbers.
+	if (foundO)
+	{
+		uint8_t route[floodingRound][2];
+		route[floodingRound-1][0] = oCoords[0]; //Saves the found goToChars row coordinate last in the the route array
+		route[floodingRound-1][1] = oCoords[1]; //Saves the found goToChars column coordinate last in the the route array
+		
+		while(floodingRound > 1)
+		{
+			//Checks that the coordinates to be searched aren't out of bounds and if so, if there is a lower number on that coordinate, saving
+			// found coordinates in the route array
+			if ((route[floodingRound-1][0]+1 < 17) && (mapArray[route[floodingRound-1][0]+1][route[floodingRound-1][1]] < floodingRound))
+			{
+				route[floodingRound-2][0] = route[floodingRound-1][0]+1;
+				route[floodingRound-2][1] = route[floodingRound-1][1];
+			}
+			else if ((route[floodingRound-1][0] >= 1) && (mapArray[route[floodingRound-1][0]-1][route[floodingRound-1][1]] < floodingRound))
+			{
+				route[floodingRound-2][0] = route[floodingRound-1][0]-1;
+				route[floodingRound-2][1] = route[floodingRound-1][1];
+			}
+			else if ((route[floodingRound-1][1]+1 < 31) && (mapArray[route[floodingRound-1][0]][route[floodingRound-1][1]+1] < floodingRound))
+			{
+				route[floodingRound-2][0] = route[floodingRound-1][0];
+				route[floodingRound-2][1] = route[floodingRound-1][1]+1;
+			}
+			else if ((route[floodingRound-1][1] >= 1) && (mapArray[route[floodingRound-1][0]][route[floodingRound-1][1]-1] < floodingRound))
+			{
+				route[floodingRound-2][0] = route[floodingRound-1][0];
+				route[floodingRound-2][1] = route[floodingRound-1][1]-1;
+			}
+			else
+			{
+				route[floodingRound-2][0] = 0x01;
+				route[floodingRound-2][1] = 0x01;
+			}
+			floodingRound--;
+		}
+		
+		//Put the route coordinates in the mapArray as 'r':s
+		for(int i = 0; i < (sizeof(route) / 2); i++)
+		{
+			mapArray[route[i][0]][route[i][1]] = 'r';
+		}
+		coordsFound = 0;
+		refDist = Photo_distance;
+		TWITransmitData('p');
+		navigateTo();
+		return 1;
+	}
+	return 0;
+}
+
+//Decision maker in an intersection or a turn
+void controlDecision(){
+	
+	//check if we moved one square
+	if(Photo_distance - refDist > 5)
+	{
+		TWITransmitData('b');
+		ControlReady = 0x0;
+		
+		//Update map
+		if ((mapArray[roboPos[0]][roboPos[1]] != 'd') && (mapArray[roboPos[0]][roboPos[1]] != 'g') && (mapArray[roboPos[0]][roboPos[1]] != 's'))
+		{
+			mapArray[roboPos[0]][roboPos[1]] = 'c';
+		}
+		if (colDir == 0)
+		{
+			if (mapArray[roboPos[0]][roboPos[1]+1] == 'u') mapArray[roboPos[0]][roboPos[1]+1] = 'w';
+			if (mapArray[roboPos[0]][roboPos[1]-1] == 'u') mapArray[roboPos[0]][roboPos[1]-1] = 'w';
+		}
+		else
+		{
+			if (mapArray[roboPos[0]+1][roboPos[1]] == 'u') mapArray[roboPos[0]+1][roboPos[1]] = 'w';
+			if (mapArray[roboPos[0]-1][roboPos[1]] == 'u') mapArray[roboPos[0]-1][roboPos[1]] = 'w';
+		}
+		
+		roboPos[0] = roboPos[0] + rowDir;
+		roboPos[1] = roboPos[1] + colDir;
+		
+	}
+	else
+	{
+		if(mapArray[roboPos[0]-rowDir][roboPos[1]-colDir]=='d')
+		{
+			TWITransmitData('j');
+		}
+		else
+		{
+			TWITransmitData('b');
+		}
+		ControlReady = 0x0;
+	}
+	
+	//Update map, this is a decision node
+	mapArray[roboPos[0]][roboPos[1]] = 'd';
+	
+	findAdjCoords();
+	
+	//Wait for robot to enter intersection
+	while(ControlReady != 0xAA);
+	
+	uint8_t leftFree = leftIsFree(leftCoords);
+	uint8_t rightFree = rightIsFree(rightCoords);
+	uint8_t frontFree = frontIsFree(frontCoords);
+
+	//Send updated map
+	sendMap();
+	
+	if (leftFree)
+	{
+		turnLeft();
+		goForward();
+	}
+	else if (frontFree)
+	{
+		TWITransmitData('z');
+		ControlReady = 0x0;
+		while(ControlReady != 0xAA);
+		goForward();
+	}
+	else if (rightFree)
+	{
+		turnRight();
+		goForward();
+	}
+	else
+	{
+		
+		if (goTo('o') == 0)
+		{
+			goTo('s');
+			return;
+		}
+		
+		refDist = Photo_distance - 3;
+		goForward();
+		return;
+	}
+	roboPos[0] = roboPos[0] + rowDir;
+	roboPos[1] = roboPos[1] + colDir;
+	sendMap();
+	sendSensorData();
+	refDist = Photo_distance;
+}
+
+//Checks if map needs update
+void check_dist(){
+	
+	uint16_t distance = Photo_distance;
+	
+	if (distance - refDist > 15)
+	{
+		//Update map, unless we've found the goal
+		if ((mapArray[roboPos[0]][roboPos[1]] != 'g') && (mapArray[roboPos[0]][roboPos[1]] != 'd') && (mapArray[roboPos[0]][roboPos[1]] != 's'))
+		{
+			mapArray[roboPos[0]][roboPos[1]] = 'c';
+		}
+		
+		if (colDir == 0)
+		{
+			if (mapArray[roboPos[0]][roboPos[1]+1] == 'u') mapArray[roboPos[0]][roboPos[1]+1] = 'w';
+			if (mapArray[roboPos[0]][roboPos[1]-1] == 'u') mapArray[roboPos[0]][roboPos[1]-1] = 'w';
+		}
+		else
+		{
+			if (mapArray[roboPos[0]+1][roboPos[1]] == 'u') mapArray[roboPos[0]+1][roboPos[1]] = 'w';
+			if (mapArray[roboPos[0]-1][roboPos[1]] == 'u') mapArray[roboPos[0]-1][roboPos[1]] = 'w';
+		}
+		
+		//Update robot position
+		roboPos[0] = roboPos[0] + rowDir;
+		roboPos[1] = roboPos[1] + colDir;
+		sendSensorData();
+		sendMap();
+		refDist = distance;
+		
+	}
+}
+
+int main(void)
+{
+	TWIInit();
+	init_bluetooth();
+	mapInit();
+	
+	int counter = 0;
+	
+	while (1)
+	{
+		//Check if autonomous mode
+		while(!(PINB & (1<<PINB0))) {
+			
+			refDist = Photo_distance;
+			
+			sendMap();
+			
+			//p-command means go forward adjusting to wall
+			TWITransmitData('p');
+			
+			//Autonomous mode
+			while (!(PINB & (1<<PINB0)))
+			{
+				check_dist();
+				
+				//Check if in an intersection
+				if ((IR_sens_left < 0x1C) || (IR_sens_right < 0x1C))
+				{
+					controlDecision();
+				}
+				//Check if in a dead-end
+				else if (IR_sens_front > 0x49)
+				{
+					if (IR_detector == 0xFF)
+					{
+						mapArray[roboPos[0]][roboPos[1]] = 'g';
+					}
+					deadEnd();
+					goForward();
+				}
+				if (counter == 1000)
+				{
+					sendSensorData();
+					counter = 0;
+				}
+				counter++;
+			}
+		}
+		
+		sendSensorData();
+		_delay_ms(100);
+	}
+}
