@@ -35,6 +35,7 @@ volatile uint8_t roboPos[2];		//Robot position
 volatile uint8_t leftCoords[2];
 volatile uint8_t rightCoords[2];
 volatile uint8_t frontCoords[2];
+volatile uint8_t backCoords[2];
 
 volatile int8_t rowDir;		//Row direction
 volatile int8_t colDir;		//Column direction
@@ -47,6 +48,7 @@ void TWIRecieveFromControl(void);
 volatile uint8_t test = 0x0;
 volatile int mapSent = 1;
 volatile int commOpen = 0;
+int coordsFound = 1;
 
 //Interrupt from firefly
 ISR(USART_RXC_vect) {
@@ -713,7 +715,7 @@ void clear_flooding()
 	}
 }
 
-uint8_t navigateToRightFree(uint8_t coords[2]){
+uint8_t navigateToRightFree(volatile uint8_t coords[2]){
 	//If it's open to the right
 	if (IR_sens_right < 0x1C)
 	{
@@ -725,7 +727,7 @@ uint8_t navigateToRightFree(uint8_t coords[2]){
 	return 0;
 }
 
-uint8_t navigateToLeftFree(uint8_t coords[2]){
+uint8_t navigateToLeftFree(volatile uint8_t coords[2]){
 	//If it's open to the right
 	if (IR_sens_left < 0x1C)
 	{
@@ -737,7 +739,7 @@ uint8_t navigateToLeftFree(uint8_t coords[2]){
 	return 0;
 }
 
-uint8_t navigateToFrontFree(uint8_t coords[2]){
+uint8_t navigateToFrontFree(volatile uint8_t coords[2]){
 	//If it's open to the right
 	if (IR_sens_front < 0x30)
 	{
@@ -749,7 +751,7 @@ uint8_t navigateToFrontFree(uint8_t coords[2]){
 	return 0;
 }
 
-uint8_t navigateToBackFree(uint8_t coords[2]){
+uint8_t navigateToBackFree(volatile uint8_t coords[2]){
 	if (mapArray[coords[0]][coords[1]] == 'r')
 	{
 		return 1;
@@ -844,6 +846,8 @@ void navigateToControl(void)
 	refDist = Photo_distance;
 	
 }
+
+void check_dist(void);
 
 void followRoute(void)
 {
@@ -994,7 +998,7 @@ int goTo(uint8_t goToChar)
 			mapArray[route[i][0]][route[i][1]] = 'r';
 		}
 		
-		sendMap()
+		sendMap();
 		
 		coordsFound = 0;
 		refDist = Photo_distance;
