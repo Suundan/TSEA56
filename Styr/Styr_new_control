@@ -537,7 +537,7 @@ void pd_control(void){
 	uint8_t sens_right;
 	int k_p = 50;
 	uint8_t p_term;
-	uint8_t ref_value = 0x2E; //0x32 before
+	uint8_t ref_value = 0x46; //0x32 before
 	uint8_t error = 0x0;
 	
 	uint8_t k_d = 65;
@@ -566,7 +566,7 @@ void pd_control(void){
 		{
 			//close to left wall
 			k_p = 60;
-		}else{
+			}else{
 			k_p = 50;
 			k_d = 65;
 		}
@@ -668,8 +668,8 @@ void shortForward(uint16_t i)
 	
 	while(Photo_distance - distance < i)
 	{
-		if(IR_sens_front > 0x63)
-			break;
+		if(IR_sens_front > 0x30)
+		break;
 	}
 	
 	if ((kommData = 's') || (kommData = 'k')) kommData = 'S';
