@@ -535,12 +535,12 @@ void pd_control(void){
 	uint8_t sens_back_left;
 	uint8_t sens_front_left;
 	uint8_t sens_right;
-	int k_p = 50;
+	uint8_t k_p = 35;
 	uint8_t p_term;
-	uint8_t ref_value = 0x46; //0x32 before
+	uint8_t ref_value = 0x39;
 	uint8_t error = 0x0;
 	
-	uint8_t k_d = 65;
+	uint8_t k_d = 45;
 	uint8_t d_term;
 	
 	uint8_t pd_term;
@@ -555,22 +555,25 @@ void pd_control(void){
 		//Update sensor values
 		sens_front_left = IR_sens_left;
 		sens_back_left = IR_sens_back_left;
-		sens_right = IR_sens_right;
 
 		//if we are close to either wall, increase k_p
-		if (sens_front_left < 35)
+		if (sens_front_left < 0x28)
 		{
-			//close to right wall
-			k_p = 65;
-		} else if (sens_front_left > 60)
-		{
-			//close to left wall
-			k_p = 60;
-			}else{
+			//close to the right wall
 			k_p = 50;
-			k_d = 65;
+			k_d = 35;
 		}
-
+		else if (sens_front_left > 0x6E)
+		{
+			//close to the left wall
+			k_p = 30;
+			k_d = 25;
+		}
+		else
+		{
+			k_p = 35;
+			k_d = 45;
+		}
 
 		if (sens_front_left < ref_value) {
 			//to far to the right
@@ -668,7 +671,7 @@ void shortForward(uint16_t i)
 	
 	while(Photo_distance - distance < i)
 	{
-		if(IR_sens_front > 0x30)
+		if(IR_sens_front > 0x2A)
 		break;
 	}
 	
@@ -682,12 +685,38 @@ void turnLeftCorridor(void) {
 
 void turnRightCorridor(void) {
 	rotate_90_right();
-	shortForward(0xD);
+	shortForward(0x9);
 }
 
 void straightForward(void)
 {
 	shortForward(0x10);
+}
+
+void alignToLeftWall(void)
+{
+	if(IR_sens_left > )
+	if (IR_sens_left > IR_sens_back_left)
+	{
+		OCR1A = speed;
+		OCR1B = speed;
+		PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
+		PORTD |= (1<<PORTD1); // DIR_LEFT framåt
+		// Rotate right until the robot is aligned against the left wall
+		while(abs(IR_sens_left - IR_sens_back_left) > 3);
+	}
+	else if ((IR_sens_left > IR_sens_back_left))
+	{
+		OCR1A = speed;
+		OCR1B = speed;
+		PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
+		PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
+		// Rotate right until the robot is aligned against the left wall
+		while(abs(IR_sens_left - IR_sens_back_left) > 3);
+	}
+	
+	stop();
+	kommData='S';
 }
 
 void manual_mode(void){
