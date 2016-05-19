@@ -661,6 +661,7 @@ namespace CppWinForm1 {
 			this->resetBut->Size = System::Drawing::Size(113, 59);
 			this->resetBut->TabIndex = 13;
 			this->resetBut->Text = L"Reset program";
+			this->resetBut->Enabled = false;
 			this->resetBut->UseVisualStyleBackColor = false;
 			this->resetBut->Click += gcnew System::EventHandler(this, &PC_Unit::resetBut_Click);
 			// 
@@ -1168,6 +1169,7 @@ namespace CppWinForm1 {
 				this->commandBox->Enabled::set(true);
 				this->COMComboBox->Enabled::set(true);
 				this->disconnectBut->Enabled = true;
+				this->resetBut->Enabled = true;
 				labelCOMComboBox->ForeColor = Color::Black;
 				this->AcceptButton = this->sendButton;
 				// Tell robot, BT-link is up
