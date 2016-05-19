@@ -1,9 +1,9 @@
 /*
- * SENS_.c
- *
- * Created: 4/12/2016 8:28:57 AM
- *  Author: marha996
- */ 
+* SENS_.c
+*
+* Created: 4/12/2016 8:28:57 AM
+*  Author: marha996
+*/
 
 #define F_CPU 1842000UL
 #include <avr/io.h>
@@ -26,7 +26,7 @@ uint16_t spi_16data(uint8_t data);
 uint16_t negative_IR_counter = 0;
 uint8_t detection_hit = 0;
 uint16_t positive_IR_counter = 0;
-uint8_t goal_detcted = 0;
+uint8_t goal_detected = 0x00;
 //Initierar bussen
 void TWIInit(void) {
 	
@@ -40,7 +40,7 @@ void TWIInit(void) {
 	//Aktiverar bussen, aktiverar ackbit, aktiverar avbrott
 	TWCR = (1<<TWEN)|(1<<TWEA)|(1<<TWIE);
 	
-	//Slavadresser 
+	//Slavadresser
 	//Kommmudul: 0x10
 	//Sensormodul: 0x20
 	//Styrmodul: 0x40
@@ -69,7 +69,7 @@ void GyroInit(void) {
 	}
 	
 	_delay_us(120);
-		
+	
 }
 
 void IRFrontInit(void) {
@@ -127,7 +127,7 @@ void TWITransmit(uint8_t address, uint8_t data1, uint8_t data2, uint8_t data3, u
 		return;
 	}
 	
-	//Send SLA+W 
+	//Send SLA+W
 	TWISend(address);
 	
 	//Check if not right
@@ -250,10 +250,10 @@ void TWITransmit(uint8_t address, uint8_t data1, uint8_t data2, uint8_t data3, u
 		TWIStop(); //release bus control
 		return;
 	}
-		
+	
 	//Send stop condition
 	TWIStop();
-		
+	
 	//Enable interrupts again
 	sei();
 }
@@ -324,23 +324,23 @@ void readFromPhoto(void)
 	while( !(ADCSRA & (1<<ADIF)));//wait for conversion complete
 	
 	photo_value = ADCH;
-		if(black_white_check ==1){//if black before, check if white now, if true ++distance
-			if(ADCH > 0xC8){
-				++distance_photo;
-				black_white_check = 0;
-			}
-			else{
-				return;
-			}
-		}else{
-			if(ADCH < 0x64){//if white before, check if black now, if true ++distance
-				++distance_photo;
-				black_white_check = 1;
-			}
-			else{
-				return;
-			}
+	if(black_white_check ==1){//if black before, check if white now, if true ++distance
+		if(ADCH > 0xC8){
+			++distance_photo;
+			black_white_check = 0;
 		}
+		else{
+			return;
+		}
+		}else{
+		if(ADCH < 0x64){//if white before, check if black now, if true ++distance
+			++distance_photo;
+			black_white_check = 1;
+		}
+		else{
+			return;
+		}
+	}
 
 }
 
@@ -395,92 +395,54 @@ void read_gyro(void)
 }
 
 void goal_detecter(){
-	if(!(PINA & (1<<PINA1)) && (detection_hit == 0))
+	
+	//Initates the counter if a zero is recieved
+	if(!(PINA & (1<<PINA1)) && (detection_hit%2 == 0))
 	{
 		TCCR1B =(1<<CS10);
-		negative_IR_counter = TCNT1;
-		detection_hit = 1;
+		detection_hit++;
 	}
-
-	if((PINA & (1<<PINA1)) && (detection_hit==0));
-
-	if((PINA & (1<<PINA1)) && (detection_hit ==1) && (negative_IR_counter<3000) && (negative_IR_counter>2500))
+	else if((PINA & (1<<PINA1)) && (detection_hit ==1))
 	{
-		TCNT1 = 0x0;
-		negative_IR_counter = 0;
-		TCCR1B =(1<<CS10);
-		positive_IR_counter = TCNT1;
-		detection_hit = 2;
-		
+		if(TCNT1>3000)//2260 usek delat på 0.555
+		{
+			TCCR1B = (0<<CS10);
+			TCNT1 = 0;
+			detection_hit++;
+		}
+		return;
 	}
-	if(!(PINA & (1<<PINA1)) && (detection_hit == 2) && (positive_IR_counter< 750) && (positive_IR_counter>650))
+	else if ((PINA & (1<<PINA1)) && ((detection_hit == 3) || (detection_hit == 5) || (detection_hit == 7)))
 	{
-		TCNT1 = 0x0;
-		positive_IR_counter = 0;
-		TCCR1B =(1<<CS10);
-		negative_IR_counter = TCNT1;
-		detection_hit = 3;
+		if ((TCNT1 < 2200) && (TCNT1>1600))//1100 usek delat på 0.555
+		{
+			TCCR1B = (0<<CS10);
+			TCNT1 = 0;
+			if (detection_hit == 7)
+			{
+				detection_hit = 0;
+				goal_detected = 0xff;
+				return;
+			}
+			detection_hit++;
+		}
+		return;
 	}
-	if ((PINA & (1<<PINA1)) && (detection_hit ==3) && (negative_IR_counter < 1500) && (negative_IR_counter>1400))
-	{
-		TCNT1 = 0x0;
-		negative_IR_counter = 0;
-		TCCR1B =(1<<CS10);
-		positive_IR_counter = TCNT1;
-		detection_hit = 4;
-	}
-	if(!(PINA & (1<<PINA1)) && (detection_hit == 4) && (positive_IR_counter< 750) && (positive_IR_counter>650))
-	{
-		TCNT1 = 0x0;
-		positive_IR_counter = 0;
-		TCCR1B = (1<<CS10);
-		negative_IR_counter = TCNT1;
-		detection_hit = 5;
-	}
-	if ((PINA & (1<<PINA1)) && (detection_hit ==3) && (negative_IR_counter < 1500) && (negative_IR_counter>1400))
-	{
-		TCNT1 = 0x0;
-		negative_IR_counter=0;
-		TCCR1B = (1<<CS10);
-		positive_IR_counter = TCNT1;
-		detection_hit = 6;
-		
-	}
-	if(!(PINA & (1<<PINA1)) && (detection_hit == 6) && (positive_IR_counter< 750) && (positive_IR_counter > 650))
-	{
-		TCNT1 = 0x0;
-		TCCR1B = (1<<CS10);
-		negative_IR_counter= TCNT1;
-		positive_IR_counter = 0;
-		detection_hit = 7;
-
-	}
-	if ((PINA & (1<<PINA1)) && (detection_hit ==7) && (negative_IR_counter < 1500) && (negative_IR_counter>1400))
-	{
-		detection_hit = 0;
-		goal_detcted = 0xff; // Goal detected
-	}
-
-	if ((PINA & (1<<PINA1))&&(detection_hit!=0)&&(positive_IR_counter>1600)&&(positive_IR_counter<400))
+	else
 	{
 		detection_hit=0;
-		goal_detcted = 0x2a;// Wrong reading
-	}
-	if(!(PINA & (1<<PINA1))&&(detection_hit!=0)&&(negative_IR_counter>1600)&&(negative_IR_counter<400))
-	{
-		detection_hit=0;
-		goal_detcted = 0x2a; // Wrong reading
+		goal_detected = 0x2a;// Wrong reading
 	}
 }
 
 uint16_t checkIRValue(void)
-{	
+{
 	TCCR1B =(1<<CS10);
-		
+	
 	while(!(PINA & (1<<PINA1)));
-		
+	
 	TCCR1B = (0<<CS10);
-		
+	
 	uint16_t count = TCNT1;
 	
 	TCNT1 = 0x0;
@@ -551,7 +513,7 @@ void read_IR(void){
 		}
 		read_IR();
 		return;
-	}	
+	}
 }
 
 int main(void)
@@ -563,19 +525,8 @@ int main(void)
 	DDRA = 0x0;
 	
 	int per_fecht = 0;
-    while (1) 
-    {
-		/*per_fecht++;
-		if (per_fecht > 50)
-		{
-			ir_detected = 0x0;
-			per_fecht = 0;
-		}
-		
-		if(!(PINA & (1<<PINA1)))
-		{
-			//read_IR();	
-		}*/
+	while (1)
+	{
 		goal_detecter();
 		read_gyro();
 		readFromIRLeft();
@@ -584,7 +535,7 @@ int main(void)
 		readFromIRFront();
 		readFromPhoto();
 		
-		TWITransmit(0x10, IR_sens_left, IR_sens_left_back, IR_sens_right, IR_sens_front, Gyro_sens, distance_photo, ir_detected);
-		TWITransmit(0x40, IR_sens_left, IR_sens_left_back, IR_sens_right, IR_sens_front, Gyro_sens, distance_photo, ir_detected);
+		TWITransmit(0x10, IR_sens_left, IR_sens_left_back, IR_sens_right, IR_sens_front, Gyro_sens, distance_photo, goal_detected);
+		TWITransmit(0x40, IR_sens_left, IR_sens_left_back, IR_sens_right, IR_sens_front, Gyro_sens, distance_photo, goal_detected);
 	}
 }
