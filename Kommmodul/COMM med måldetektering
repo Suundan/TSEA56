@@ -587,6 +587,52 @@ void deadEnd(void)
 	
 }
 
+//Turns 180 degrees in followRoute
+void turn180inFollowRoute(void)
+{
+	TWITransmitData('S');
+	//Rotate 180 degrees
+	uint16_t distance = Photo_distance;
+	
+	//Check if a square has been passed
+	if (distance - refDist > 10)
+	{
+		//move one square ahead
+		roboPos[0] = roboPos[0] + rowDir;
+		roboPos[1] = roboPos[1] + colDir;
+	}
+	
+	//Change direction
+	if (rowDir != 0)
+	{
+		colDir = 0;
+		rowDir = -rowDir;
+	}
+	else
+	{
+		rowDir = 0;
+		colDir = -colDir;
+	}
+	
+	TWITransmitData('u');
+	ControlReady = 0x0;
+	//Wait for control module to finish
+	while(ControlReady != 0xAA);
+	
+	refDist = Photo_distance - 8;
+	
+	sendSensorData();
+	
+	//Move forward
+	if (IR_sens_left < 0x18 || IR_sens_back_left < 0x18)
+	{
+		TWITransmitData('f');
+		while (IR_sens_left < 0x18 || IR_sens_back_left < 0x18);
+	}
+	goForward();
+	
+}
+
 //Checks if robot has been to the left
 uint8_t leftIsFree(volatile uint8_t coords[2]){
 	//If it's open to the left
@@ -820,7 +866,7 @@ void followRouteControl(void)
 	}
 	else if (backFree)
 	{
-		deadEnd();
+		turn180inFollowRoute();
 		roboPos[0] = roboPos[0] - rowDir;
 		roboPos[1] = roboPos[1] - colDir;
 	}
