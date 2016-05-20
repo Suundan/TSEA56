@@ -19,6 +19,7 @@ volatile uint8_t IR_sens_front = 0x5;
 volatile uint16_t Gyro_sens = 0x0;
 volatile uint16_t Photo_distance = 0x0;
 volatile uint8_t IR_detector = 0x0;
+volatile uint8_t ir_detected = 0x00;
 
 //Control module ready to receive
 volatile uint8_t ControlReady = 0x0;
@@ -1190,7 +1191,7 @@ uint16_t checkIRValue(void)
 	TCCR1B =(1<<CS10);
 	
 	while(IR_detector == 0x00);
-	
+
 	TCCR1B = (0<<CS10);
 	
 	uint16_t count = TCNT1;
@@ -1208,12 +1209,16 @@ int checkIRPuls(void)
 	//check again
 	uint16_t count = checkIRValue();
 	
-	if (abs(count-2000) < 600)
+	bluetooth_transmit(0x05);
+
+	if (count > 500)
 	{
+		bluetooth_transmit(0x06);
 		return 1;
 	}
 	else
 	{
+		bluetooth_transmit(0x07);
 		return 0;
 	}
 	
@@ -1222,19 +1227,22 @@ int checkIRPuls(void)
 void read_IR(void){
 	
 	uint16_t count = checkIRValue();
-	
-	if (count > 3000)
+	bluetooth_transmit(0x01);
+	if (count > 1000)
 	{
+		bluetooth_transmit(0x02);
 		if(!checkIRPuls())
 		{
 			ir_detected = 0x55;
 			return;
 		}
+		bluetooth_transmit(0x03);
 		if(!checkIRPuls())
 		{
 			ir_detected = 0x55;
 			return;
 		}
+		bluetooth_transmit(0x04);
 		if(!checkIRPuls())
 		{
 			ir_detected = 0x55;
@@ -1304,24 +1312,27 @@ int main(void)
 				//Check if in a dead-end
 				else if (IR_sens_front > 0x2C)
 				{
+					TWITransmitData('S');
 					int check_value = 0;
-					while(check_value < 3000)
+					while(check_value < 10000)
 					{
-						if(IR_detector == 0x01){
+						if(IR_detector == 0x00)
+						{
+							_delay_ms(1000);
 							read_IR();
 						}
 						check_value++;
 					}
 					if (ir_detected == 0xFF)
 					{
-						roboPos[0] = goalPos[0];
-						roboPos[1] = goalPos[1];
+						goalPos[0] = roboPos[0];
+						goalPos[1] = roboPos[1];
+
+						ir_detected = 0x0;
 					}
 					TWITransmitData('B');
 					_delay_ms(25); // makes sure robot stops properly
 					deadEnd();
-					// goForward() görs redan i deadEnd()...
-					//goForward();
 				}
 				if (counter == 1000)
 				{
