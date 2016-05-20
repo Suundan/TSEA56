@@ -24,7 +24,7 @@ uint8_t ir_detected = 0x00;
 
 uint16_t spi_16data(uint8_t data);
 uint16_t negative_IR_counter = 0;
-uint8_t detection_hit = 0;
+int detection_hit = 0;
 uint16_t positive_IR_counter = 0;
 uint8_t goal_detected = 0x00;
 //Initierar bussen
@@ -397,41 +397,61 @@ void read_gyro(void)
 void goal_detecter(){
 	
 	//Initates the counter if a zero is recieved
-	if(!(PINA & (1<<PINA1)) && (detection_hit%2 == 0))
+	if(!(PINA & (1<<PINA1)))
 	{
-		TCCR1B =(1<<CS10);
-		detection_hit++;
-	}
-	else if((PINA & (1<<PINA1)) && (detection_hit ==1))
-	{
-		if(TCNT1>3000)//2260 usek delat på 0.555
+		if(goal_detected != 0xFF)
 		{
-			TCCR1B = (0<<CS10);
-			TCNT1 = 0;
+			goal_detected = 0;
+		}
+		
+		if ((detection_hit == 0) || (detection_hit == 2) || (detection_hit == 4) || (detection_hit == 6))
+		{
+			TCCR1B =(1<<CS10);
 			detection_hit++;
 		}
-		return;
+		else
+		{
+			return;
+		}
+		
+	}
+	else if((PINA & (1<<PINA1)) && (detection_hit == 1))
+	{
+		TCCR1B = (0<<CS10);
+		uint16_t count = TCNT1;
+		if(count>3000)//2260 usek delat på 0.555
+		{
+			detection_hit = 2;
+			goal_detected = 0x3A;
+		}
+		else
+		{
+			goal_detected = 0x20;
+			detection_hit = 0;
+		}
+		TCNT1 = 0;
 	}
 	else if ((PINA & (1<<PINA1)) && ((detection_hit == 3) || (detection_hit == 5) || (detection_hit == 7)))
 	{
-		if ((TCNT1 < 2200) && (TCNT1>1600))//1100 usek delat på 0.555
+		TCCR1B = (0<<CS10);
+		uint16_t count = TCNT1;
+		if (abs(count - 2000) < 1000)//1100 usek delat på 0.555
 		{
-			TCCR1B = (0<<CS10);
-			TCNT1 = 0;
 			if (detection_hit == 7)
 			{
 				detection_hit = 0;
-				goal_detected = 0xff;
+				goal_detected = 0xFF;
 				return;
 			}
 			detection_hit++;
+			goal_detected = 0x4A;
 		}
-		return;
-	}
-	else
-	{
-		detection_hit=0;
-		goal_detected = 0x2a;// Wrong reading
+		else
+		{
+			goal_detected = 0x27;
+			detection_hit = 0;
+		}
+		TCNT1 = 0;
 	}
 }
 
@@ -524,10 +544,25 @@ int main(void)
 	//Set ADC Ports as input
 	DDRA = 0x0;
 	
-	int per_fecht = 0;
+	int counter = 0;
+	
 	while (1)
 	{
-		goal_detecter();
+		
+		if(goal_detected != 0xFF)
+		{
+			goal_detecter();
+		}
+		else
+		{
+			if (counter == 10000000)
+			{
+				goal_detected = 0;
+				counter = 0;
+			}
+			counter++;
+		}
+		
 		read_gyro();
 		readFromIRLeft();
 		readFromIRLeftBack();
