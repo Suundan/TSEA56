@@ -21,6 +21,7 @@ volatile uint16_t Photo_distance = 0x0;
 volatile uint8_t IR_detector = 0x0;
 volatile uint8_t ir_detected = 0x00;
 
+
 //Control module ready to receive
 volatile uint8_t ControlReady = 0x0;
 
