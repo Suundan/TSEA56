@@ -25,9 +25,11 @@ volatile uint8_t ir_detected = 0x0;
 
 volatile uint8_t ControlReady = 0xAA;
 //Speed
-uint16_t speedPD = 0x155;
-uint16_t speed = 0x18F;
+uint16_t speedPD = 0x190;
+uint16_t speedRotate = 0x255;
+uint16_t speedShort = 0x155;
 uint16_t Gyro_ref = 0x0;
+
 
 //Interrupt bus
 ISR(TWI_vect){
@@ -398,8 +400,8 @@ void rotate_90_left(void){
 	PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
 	PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
 
-	OCR1A = speed;
-	OCR1B = speed;
+	OCR1A = speedRotate;
+	OCR1B = speedRotate;
 	
 	double sum_velocity = 0;
 	
@@ -434,8 +436,8 @@ void rotate_90_right(void){
 	//left-wise (anti-clock) rotation increases gyro
 	PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
 	PORTD |= (1<<PORTD1); // DIR_LEFT framåt
-	OCR1A = speed;
-	OCR1B = speed;
+	OCR1A = speedRotate;
+	OCR1B = speedRotate;
 	
 	double sum_velocity = 0;
 	
@@ -469,8 +471,8 @@ void rotate_180(void){
 	PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
 	PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
 
-	OCR1A = speed;
-	OCR1B = speed;
+	OCR1A = speedRotate;
+	OCR1B = speedRotate;
 	
 	double sum_velocity = 0;
 	
@@ -547,8 +549,8 @@ void pd_control(void){
 	
 	PORTD |= (1<<PORTD0); // DIR_RIGHT Direction framåt
 	PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
-	OCR1A = speed;
-	OCR1B = speed;
+	OCR1A = speedPD;
+	OCR1B = speedPD;
 	
 	while (1){
 		if(kommData != 'p') return;
@@ -599,9 +601,9 @@ void pd_control(void){
 				pd_term = p_term - d_term;
 			}
 			
-			if (pd_term > 0x0180) pd_term = 0x0180;
-			OCR1B = speed - pd_term; //left
-			OCR1A = speed + pd_term; //right
+			if (pd_term > speedPD) pd_term = speedPD;
+			OCR1B = speedPD - pd_term; //left
+			OCR1A = speedPD + pd_term; //right
 			
 			} else {
 			//to far to the left
@@ -626,9 +628,9 @@ void pd_control(void){
 				pd_term = p_term + d_term;
 			}
 			
-			if (pd_term > 0x0180) pd_term = 0x0180;
-			OCR1B = speed + pd_term; //left
-			OCR1A = speed - pd_term; //right
+			if (pd_term > speedPD) pd_term = speedPD;
+			OCR1B = speedPD + pd_term; //left
+			OCR1A = speedPD - pd_term; //right
 		}
 		
 	}
@@ -667,7 +669,7 @@ void RobotDance(void)
 void shortForward(uint16_t i)
 {
 	uint16_t distance = Photo_distance;
-	forward(speedPD, speedPD);
+	forward(speedShort, speedShort);
 	
 	while(Photo_distance - distance < i)
 	{
@@ -678,45 +680,46 @@ void shortForward(uint16_t i)
 	if ((kommData = 's') || (kommData = 'k')) kommData = 'S';
 }
 
+void alignToLeftWall(void);
+
 void turnLeftCorridor(void) {
 	rotate_90_left();
 	shortForward(0xD);
+	alignToLeftWall();
 }
 
 void turnRightCorridor(void) {
 	rotate_90_right();
 	shortForward(0x9);
-}
-
-void straightForward(void)
-{
-	shortForward(0x10);
+	alignToLeftWall();
 }
 
 void alignToLeftWall(void)
 {
-	if(IR_sens_left > )
-	if (IR_sens_left > IR_sens_back_left)
+	// Check if there is a wall to align against
+	if(IR_sens_left > 0x1C && IR_sens_back_left > 0x1C)
 	{
-		OCR1A = speed;
-		OCR1B = speed;
-		PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
-		PORTD |= (1<<PORTD1); // DIR_LEFT framåt
-		// Rotate right until the robot is aligned against the left wall
-		while(abs(IR_sens_left - IR_sens_back_left) > 3);
+		if (IR_sens_left > IR_sens_back_left)
+		{
+			OCR1A = speedShort;
+			OCR1B = speedShort;
+			PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
+			PORTD |= (1<<PORTD1); // DIR_LEFT framåt
+			// Rotate right until the robot is aligned against the left wall
+			while(abs(IR_sens_left - IR_sens_back_left) > 3);
+		}
+		else if ((IR_sens_left < IR_sens_back_left))
+		{
+			OCR1A = speedShort;
+			OCR1B = speedShort;
+			PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
+			PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
+			// Rotate right until the robot is aligned against the left wall
+			while(abs(IR_sens_left - IR_sens_back_left) > 3);
+		}
+		stop();
+		kommData='S';
 	}
-	else if ((IR_sens_left > IR_sens_back_left))
-	{
-		OCR1A = speed;
-		OCR1B = speed;
-		PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
-		PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
-		// Rotate right until the robot is aligned against the left wall
-		while(abs(IR_sens_left - IR_sens_back_left) > 3);
-	}
-	
-	stop();
-	kommData='S';
 }
 
 void manual_mode(void){
@@ -764,6 +767,7 @@ void manual_mode(void){
 			break;
 			case 'u':
 			rotate_180();
+			alignToLeftWall();
 			ControlReady = 0x0;
 			while(ControlReady != 0xAA)
 			{
@@ -826,7 +830,7 @@ void manual_mode(void){
 			}
 			break;
 			case 'f':
-			forward(speedPD,speedPD);
+			forward(speedShort,speedShort);
 			break;
 			default:
 			stop();
@@ -836,7 +840,6 @@ void manual_mode(void){
 
 int main(void)
 {
-	_delay_ms(100);
 	init_pwm(); //Sätter grundinställningar för PWM
 	init_pwm_claw();
 	TWIInit(); //Initierar bussen
