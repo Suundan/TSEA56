@@ -512,10 +512,9 @@ void turnRight(){
 //Turns 180 degrees
 void deadEnd(void)
 {
+	TWITransmitData('S');
 	//Rotate 180 degrees
 	uint16_t distance = Photo_distance;
-	TWITransmitData('u');
-	ControlReady = 0x0;
 	
 	//Check if a square has been passed
 	if (distance - refDist > 10)
@@ -559,15 +558,16 @@ void deadEnd(void)
 	//Change direction
 	if (rowDir != 0)
 	{
-	colDir = 0;
-	rowDir = -rowDir;
+		colDir = 0;
+		rowDir = -rowDir;
 	}
 	else
 	{
-	rowDir = 0;
-	colDir = -colDir;
+		rowDir = 0;
+		colDir = -colDir;
 	}
-	
+	TWITransmitData('u');
+	ControlReady = 0x0;
 	//Wait for control module to finish
 	while(ControlReady != 0xAA);
 	
@@ -578,13 +578,19 @@ void deadEnd(void)
 	sendSensorData();
 	
 	//Move forward
+	if (IR_sens_left < 0x18 || IR_sens_back_left < 0x18)
+	{
+		TWITransmitData('f');
+		while (IR_sens_left < 0x18 || IR_sens_back_left < 0x18);
+	}
 	goForward();
+	
 }
 
 //Checks if robot has been to the left
 uint8_t leftIsFree(volatile uint8_t coords[2]){
 	//If it's open to the left
-	if (IR_sens_left < 0x10)
+	if (IR_sens_left < 0x18)
 	{
 		//If it's uncharted to the left, "open" the box
 		if (mapArray[coords[0]][coords[1]] == 'u')
@@ -609,7 +615,7 @@ uint8_t leftIsFree(volatile uint8_t coords[2]){
 uint8_t frontIsFree(volatile uint8_t coords[2])
 {
 	//If it's open in the front
-	if (IR_sens_front < 0x17)
+	if (IR_sens_front < 0x18)
 	{
 		//If it's uncharted, make it open
 		if (mapArray[coords[0]][coords[1]] == 'u')
@@ -633,7 +639,7 @@ uint8_t frontIsFree(volatile uint8_t coords[2])
 //Checks if robot has been to the right
 uint8_t rightIsFree(volatile uint8_t coords[2]){
 	//If it's open to the right
-	if (IR_sens_right < 0x10)
+	if (IR_sens_right < 0x18)
 	{
 		//If it's uncharted, make it open
 		if (mapArray[coords[0]][coords[1]] == 'u')
@@ -724,17 +730,17 @@ void clear_flooding()
 
 uint8_t followRouteRightFree(volatile uint8_t coords[2]){
 	//If it's open to the right
-	return ((IR_sens_right < 0x10) && ((mapArray[coords[0]][coords[1]] != 'c' ) && (mapArray[coords[0]][coords[1]] != 'w') && (mapArray[coords[0]][coords[1]] != 'd' )));
+	return ((IR_sens_right < 0x18) && ((mapArray[coords[0]][coords[1]] != 'c' ) && (mapArray[coords[0]][coords[1]] != 'w') && (mapArray[coords[0]][coords[1]] != 'd' )));
 }
 
 uint8_t followRouteLeftFree(volatile uint8_t coords[2]){
 	//If it's open to the left
-	return ((IR_sens_left < 0x10) && ((mapArray[coords[0]][coords[1]] != 'c' ) && (mapArray[coords[0]][coords[1]] != 'w') && (mapArray[coords[0]][coords[1]] != 'd' )));
+	return ((IR_sens_left < 0x18) && ((mapArray[coords[0]][coords[1]] != 'c' ) && (mapArray[coords[0]][coords[1]] != 'w') && (mapArray[coords[0]][coords[1]] != 'd' )));
 }
 
 uint8_t followRouteFrontFree(volatile uint8_t coords[2]){
 	//If it's open up front
-	return ((IR_sens_front < 0x17) && ((mapArray[coords[0]][coords[1]] != 'c' ) && (mapArray[coords[0]][coords[1]] != 'w') && (mapArray[coords[0]][coords[1]] != 'd' )));
+	return ((IR_sens_front < 0x18) && ((mapArray[coords[0]][coords[1]] != 'c' ) && (mapArray[coords[0]][coords[1]] != 'w') && (mapArray[coords[0]][coords[1]] != 'd' )));
 }
 
 uint8_t followRouteBackFree(volatile uint8_t coords[2]){
@@ -815,6 +821,8 @@ void followRouteControl(void)
 	else if (backFree)
 	{
 		deadEnd();
+		roboPos[0] = roboPos[0] - rowDir;
+		roboPos[1] = roboPos[1] - colDir;
 	}
 	else
 	{
@@ -845,7 +853,7 @@ void followRoute(uint8_t goToChar)
 		check_dist();
 		
 		//Check if in an intersection
-		if ((IR_sens_left < 0x10) || (IR_sens_right < 0x10) || (IR_sens_front > 0x14))
+		if ((IR_sens_left < 0x18) || (IR_sens_right < 0x18) || (IR_sens_front > 0x18))
 		{
 			followRouteControl();
 		}
@@ -862,8 +870,6 @@ void followRoute(uint8_t goToChar)
 //"Floods" the map to find the closest decision point with the right char in adjacent boxes
 int goTo(uint8_t goToChar)
 {
-	commOpen = 0;
-	while (!commOpen);
 	uint8_t charCoords[2] = {0,0};
 
 	//Floods map until the wanted char is found
@@ -1090,7 +1096,7 @@ void controlDecision(){
 			return;
 		}
 		
-		refDist = Photo_distance - 3;
+		refDist = Photo_distance;
 		goForward();
 		return;
 	}
@@ -1145,8 +1151,8 @@ int main(void)
 	while (1)
 	{
 		//Check if autonomous mode
-		while (!(PINB & (1<<PINB0))) {
-			
+		while (!(PINB & (1<<PINB0)))
+		{
 			refDist = Photo_distance;
 			
 			sendMap();
@@ -1160,7 +1166,7 @@ int main(void)
 				check_dist();
 				
 				//Check if in an intersection
-				if ((IR_sens_left < 0x10) || (IR_sens_right < 0x10))
+				if ((IR_sens_left < 0x18) || (IR_sens_right < 0x18))
 				{
 					controlDecision();
 				}
@@ -1180,6 +1186,8 @@ int main(void)
 							mapArray[roboPos[0]][roboPos[1]] = 'g';
 						}
 					}
+					TWITransmitData('B');
+					_delay_ms(25); // makes sure robot stops properly
 					deadEnd();
 					// goForward() görs redan i deadEnd()...
 					//goForward();
