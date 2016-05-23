@@ -476,7 +476,7 @@ void rotate_180(void){
 	
 	double sum_velocity = 0;
 	
-	while(sum_velocity < 2200)
+	while(sum_velocity < 2300)
 	{
 		TCCR1B = (0<<CS10);
 		double time = TCNT1;
@@ -699,23 +699,23 @@ void alignToLeftWall(void)
 	// Check if there is a wall to align against
 	if(IR_sens_left > 0x1C && IR_sens_back_left > 0x1C)
 	{
-		if (IR_sens_left > IR_sens_back_left)
+		if (IR_sens_left > IR_sens_back_left )
 		{
 			OCR1A = speedShort;
 			OCR1B = speedShort;
 			PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
 			PORTD |= (1<<PORTD1); // DIR_LEFT framåt
 			// Rotate right until the robot is aligned against the left wall
-			while(abs(IR_sens_left - IR_sens_back_left) > 3);
+			while(abs(IR_sens_left - IR_sens_back_left) > 4);
 		}
-		else if ((IR_sens_left < IR_sens_back_left))
+		else if ( IR_sens_left < IR_sens_back_left )
 		{
 			OCR1A = speedShort;
 			OCR1B = speedShort;
 			PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
 			PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
 			// Rotate right until the robot is aligned against the left wall
-			while(abs(IR_sens_left - IR_sens_back_left) > 3);
+			while(abs(IR_sens_left - IR_sens_back_left) > 4);
 		}
 		stop();
 		kommData='S';
