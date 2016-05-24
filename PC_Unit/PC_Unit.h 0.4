@@ -999,13 +999,20 @@ namespace CppWinForm1 {
 			 ///Sends a String to robot via Bluetooth
 	public: static void send(String ^s)
 	{
-		if (serialPort2->IsOpen)
+		try
 		{
-			PC_Unit::serialPort2->Write(s);
+			if (serialPort2->IsOpen)
+			{
+				PC_Unit::serialPort2->Write(s);
+			}
+			else
+			{
+				writeToUser("CANNOT SEND: Serial port not open");
+			}
 		}
-		else
+		catch (System::IO::IOException ^)
 		{
-			writeToUser("CANNOT SEND: Serial port not open");
+			//do nothing
 		}
 	}
 			///Writes a String in the textBox for receieved bluetooth
