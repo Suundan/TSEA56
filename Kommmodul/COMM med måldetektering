@@ -801,6 +801,12 @@ void followRouteControl(uint8_t goToChar)
 		
 	}
 	
+	if (mapArray[roboPos[0]][roboPos[1]] == goToChar )
+	{
+		TWITransmitData('S');
+		return;
+	}
+	
 	//Update map, this is a decision node
 	mapArray[roboPos[0]][roboPos[1]] = 'd';
 	
@@ -1014,6 +1020,8 @@ int goTo(uint8_t goToChar)
 		mapArray[roboPos[0]][roboPos[1]] = 0;
 		
 		refDist = Photo_distance;
+		commOpen = 0;
+		while(!commOpen);
 		followRoute(goToChar);
 		
 		return 1;
@@ -1103,8 +1111,8 @@ void controlDecision(){
 		if (!goTo('o'))
 		{
 			goTo('s');
-			TWITransmitData('j');
-			//Pick upp
+			//TWITransmitData('j');
+			//Pick up
 			_delay_ms(1000);
 			TWITransmitData('c');
 			_delay_ms(1000);
@@ -1113,7 +1121,7 @@ void controlDecision(){
 			mapArray[startPos[0]][startPos[1]] = 's';
 			sendMap();
 			//Drop
-			_delay_ms(1000);
+			_delay_ms(500);
 			TWITransmitData('o');
 			_delay_ms(1000);
 			goTo('s');
