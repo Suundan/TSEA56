@@ -171,7 +171,6 @@ void TWITransmitData(uint8_t data) {
 		return;
 	}
 	
-	
 	//Send header, own address + info
 	TWISend(0x40);
 	
@@ -391,10 +390,10 @@ void turn_left(unsigned int speed)
 }
 
 void rotate_90_left(void){
-
-	double pre_gyro = Gyro_sens;
+	int temp = Gyro_sens - 0x7EC;
+	int pre_gyro = abs(temp)/8;
 	double gyro_mid;
-	double gyro;
+	int gyro;
 	
 	//left-wise (anti-clock) rotation increases gyro
 	PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
@@ -405,12 +404,14 @@ void rotate_90_left(void){
 	
 	double sum_velocity = 0;
 	
-	while(sum_velocity < 1150)
+	while(sum_velocity < 1050)
 	{
 		TCCR1B = (0<<CS10);
 		double time = TCNT1;
 		
-		gyro = abs(Gyro_sens - 0x7EC)/8;
+		temp = Gyro_sens - 0x7EC;
+		
+		gyro = abs(temp)/8;
 		gyro_mid = (pre_gyro + gyro)/2;
 		gyro_mid = gyro_mid * (time/10000);
 		pre_gyro = gyro;
@@ -428,10 +429,10 @@ void rotate_90_left(void){
 }
 
 void rotate_90_right(void){
-	
-	double pre_gyro = Gyro_sens;
+	int temp = Gyro_sens - 0x7EC;
+	int pre_gyro = abs(temp)/8;
 	double gyro_mid;
-	double gyro;
+	int gyro;
 	
 	//left-wise (anti-clock) rotation increases gyro
 	PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
@@ -441,12 +442,14 @@ void rotate_90_right(void){
 	
 	double sum_velocity = 0;
 	
-	while(sum_velocity < 1150)
+	while(sum_velocity < 1100)
 	{
 		TCCR1B = (0<<CS10);
 		double time = TCNT1;
 		
-		gyro = abs(Gyro_sens - 0x7EC)/8;
+		temp = Gyro_sens - 0x7EC;
+		
+		gyro = abs(temp)/8;
 		gyro_mid = (pre_gyro + gyro)/2;
 		gyro_mid = gyro_mid * (time/10000);
 		pre_gyro = gyro;
@@ -463,9 +466,10 @@ void rotate_90_right(void){
 }
 
 void rotate_180(void){
-	double pre_gyro = Gyro_sens;
+	int temp = Gyro_sens - 0x7EC;
+	int pre_gyro = abs(temp)/8;
 	double gyro_mid;
-	double gyro;
+	int gyro;
 	
 	//left-wise (anti-clock) rotation increases gyro
 	PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
@@ -481,7 +485,9 @@ void rotate_180(void){
 		TCCR1B = (0<<CS10);
 		double time = TCNT1;
 		
-		gyro = abs(Gyro_sens - 0x7EC)/8;
+		temp = Gyro_sens - 0x7EC;
+		
+		gyro = abs(temp)/8;
 		gyro_mid = (pre_gyro + gyro)/2;
 		gyro_mid = gyro_mid * (time/10000);
 		pre_gyro = gyro;
@@ -562,14 +568,14 @@ void pd_control(void){
 		if (sens_front_left < 0x28)
 		{
 			//close to the right wall
-			k_p = 50;
-			k_d = 35;
+			k_p = 45;
+			k_d = 57;
 		}
-		else if (sens_front_left > 0x6E)
+		else if (sens_front_left > 0x64)
 		{
 			//close to the left wall
-			k_p = 30;
-			k_d = 25;
+			k_p = 25;
+			k_d = 32;
 		}
 		else
 		{
@@ -669,6 +675,7 @@ void RobotDance(void)
 void shortForward(uint16_t i)
 {
 	uint16_t distance = Photo_distance;
+	
 	forward(speedShort, speedShort);
 	
 	while(Photo_distance - distance < i)
@@ -696,29 +703,31 @@ void turnRightCorridor(void) {
 
 void alignToLeftWall(void)
 {
+	_delay_ms(100);
+	
 	// Check if there is a wall to align against
 	if(IR_sens_left > 0x1C && IR_sens_back_left > 0x1C)
 	{
 		if (IR_sens_left > IR_sens_back_left )
 		{
-			OCR1A = speedShort;
-			OCR1B = speedShort;
 			PORTD |= (1<<PORTD0); // DIR_RIGHT bakåt
 			PORTD |= (1<<PORTD1); // DIR_LEFT framåt
+			OCR1A = 0xEE;
+			OCR1B = 0xEE;
 			// Rotate right until the robot is aligned against the left wall
-			while(abs(IR_sens_left - IR_sens_back_left) > 4);
+			while(IR_sens_left - 3 > IR_sens_back_left);
+			stop();
 		}
 		else if ( IR_sens_left < IR_sens_back_left )
 		{
-			OCR1A = speedShort;
-			OCR1B = speedShort;
 			PORTD &= ~(1<<PORTD0); // DIR_RIGHT bakåt
 			PORTD &= ~(1<<PORTD1); // DIR_LEFT framåt
+			OCR1A = 0xEE;
+			OCR1B = 0xEE;
 			// Rotate right until the robot is aligned against the left wall
-			while(abs(IR_sens_left - IR_sens_back_left) > 4);
+			while(IR_sens_back_left - 3 > IR_sens_left);
+			stop();
 		}
-		stop();
-		kommData='S';
 	}
 }
 
@@ -821,8 +830,16 @@ void manual_mode(void){
 				TWITransmitData(0xAA);
 			}
 			break;
+			case 'q':
+			shortForward(0x9);
+			ControlReady = 0x0;
+			while(ControlReady != 0xAA)
+			{
+				TWITransmitData(0xAA);
+			}
+			break;
 			case 'j':
-			shortForward(0x6);
+			shortForward(0x5);
 			ControlReady = 0x0;
 			while(ControlReady != 0xAA)
 			{
