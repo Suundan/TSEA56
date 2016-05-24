@@ -56,7 +56,7 @@ int missionComplete = 0;
 //Interrupt from firefly
 ISR(USART_RXC_vect) {
 	uint8_t temp = UDR;
-	if (temp == 'c')
+	if (temp == 'x')
 	{
 		commOpen = 1;
 	}
@@ -210,6 +210,7 @@ void TWISend(uint8_t data) {
 
 //Send 8-bit data to bus
 void TWITransmitData(uint8_t data) {
+	
 	//Disable interrupts while sending data to bus
 	cli();
 	
@@ -244,6 +245,10 @@ void TWITransmitData(uint8_t data) {
 			TWITransmitData(data); //Resend
 			return;
 		}
+		
+		TWIStop(); //release bus control
+		TWITransmitData(data); //Resend
+		return;
 	}
 	
 	//Send header, own address + info
@@ -577,11 +582,11 @@ void deadEnd(void)
 		rowDir = 0;
 		colDir = -colDir;
 	}
-
+	
 	//Wait for control module to finish
 	while(ControlReady != 0xAA);
 
-	TWITransmitData('z');
+	TWITransmitData('q');
 	ControlReady = 0;
 	while (!ControlReady);
 	
@@ -735,30 +740,34 @@ void clear_flooding()
 	}
 }
 
-uint8_t followRouteRightFree(volatile uint8_t coords[2]){
+uint8_t followRouteRightFree(volatile uint8_t coords[2], uint8_t goToChar)
+{
 	//If it's open to the right
-	return ((IR_sens_right < 0x18) && ((mapArray[coords[0]][coords[1]] != 'c' ) && (mapArray[coords[0]][coords[1]] != 'w') && (mapArray[coords[0]][coords[1]] != 'd' )));
+	return ((IR_sens_right < 0x18) && ((mapArray[coords[0]][coords[1]] == 'r' ) || (mapArray[coords[0]][coords[1]] == goToChar)));
 }
 
-uint8_t followRouteLeftFree(volatile uint8_t coords[2]){
+uint8_t followRouteLeftFree(volatile uint8_t coords[2], uint8_t goToChar)
+{
 	//If it's open to the left
-	return ((IR_sens_left < 0x18) && ((mapArray[coords[0]][coords[1]] != 'c' ) && (mapArray[coords[0]][coords[1]] != 'w') && (mapArray[coords[0]][coords[1]] != 'd' )));
+	return ((IR_sens_left < 0x18) && ((mapArray[coords[0]][coords[1]] == 'r' ) || (mapArray[coords[0]][coords[1]] == goToChar)));
 }
 
-uint8_t followRouteFrontFree(volatile uint8_t coords[2]){
+uint8_t followRouteFrontFree(volatile uint8_t coords[2], uint8_t goToChar)
+{
 	//If it's open up front
-	return ((IR_sens_front < 0x20) && ((mapArray[coords[0]][coords[1]] != 'c' ) && (mapArray[coords[0]][coords[1]] != 'w') && (mapArray[coords[0]][coords[1]] != 'd' )));
+	return ((IR_sens_front < 0x20) && ((mapArray[coords[0]][coords[1]] == 'r' ) || (mapArray[coords[0]][coords[1]] == goToChar)));
 }
 
-uint8_t followRouteBackFree(volatile uint8_t coords[2]){
-	return (((mapArray[coords[0]][coords[1]] != 'c' ) && (mapArray[coords[0]][coords[1]] != 'w') && (mapArray[coords[0]][coords[1]] != 'd' )));
+uint8_t followRouteBackFree(volatile uint8_t coords[2], uint8_t goToChar)
+{
+	return ((mapArray[coords[0]][coords[1]] != 'c' ) && ((mapArray[coords[0]][coords[1]] == 'r' ) || (mapArray[coords[0]][coords[1]] == goToChar)));
 }
 
-void followRouteControl(void)
+void followRouteControl(uint8_t goToChar)
 {
 	TWITransmitData('S');
 	//check if we moved one square
-	if(Photo_distance - refDist > 5)
+	if(Photo_distance - refDist > 4)
 	{
 		TWITransmitData('b');
 		ControlReady = 0x0;
@@ -797,13 +806,15 @@ void followRouteControl(void)
 	
 	findAdjCoords();
 	
+	sendMap();
+	
 	//Wait for robot to enter intersection
 	while(ControlReady != 0xAA);
 	
-	uint8_t leftFree = followRouteLeftFree(leftCoords);
-	uint8_t rightFree = followRouteRightFree(rightCoords);
-	uint8_t frontFree = followRouteFrontFree(frontCoords);
-	uint8_t backFree = followRouteBackFree(backCoords);
+	uint8_t leftFree = followRouteLeftFree(leftCoords, goToChar);
+	uint8_t rightFree = followRouteRightFree(rightCoords, goToChar);
+	uint8_t frontFree = followRouteFrontFree(frontCoords, goToChar);
+	uint8_t backFree = followRouteBackFree(backCoords, goToChar);
 
 	//Send updated map
 	sendMap();
@@ -853,6 +864,7 @@ void followRoute(uint8_t goToChar)
 		//Right position is reached
 		if (mapArray[roboPos[0]][roboPos[1]] == goToChar )
 		{
+			TWITransmitData('S');
 			return;
 		}
 		check_dist();
@@ -860,7 +872,7 @@ void followRoute(uint8_t goToChar)
 		//Check if in an intersection
 		if ((IR_sens_left < 0x18) || (IR_sens_right < 0x18) || (IR_sens_front > 0x18))
 		{
-			followRouteControl();
+			followRouteControl(goToChar);
 		}
 		
 		if (counter == 1000)
@@ -1013,9 +1025,10 @@ int goTo(uint8_t goToChar)
 
 //Decision maker in an intersection or a turn
 void controlDecision(){
+	TWITransmitData('S');
 	
 	//check if we moved one square (???)
-	if(Photo_distance - refDist > 5)
+	if(Photo_distance - refDist > 4)
 	{
 		TWITransmitData('b');
 		ControlReady = 0x0;
@@ -1042,7 +1055,7 @@ void controlDecision(){
 	}
 	else
 	{
-		if(mapArray[roboPos[0]-rowDir][roboPos[1]-colDir]=='d')
+		if(mapArray[roboPos[0]-rowDir][roboPos[1]-colDir]=='d' || mapArray[roboPos[0]-rowDir][roboPos[1]-colDir]=='g')
 		{
 			TWITransmitData('j');
 		}
@@ -1090,13 +1103,21 @@ void controlDecision(){
 		if (!goTo('o'))
 		{
 			goTo('s');
+			TWITransmitData('j');
 			//Pick upp
-			_delay_ms(5000);
+			_delay_ms(1000);
+			TWITransmitData('c');
+			_delay_ms(1000);
 			goTo('g');
+			TWITransmitData('j');
+			mapArray[startPos[0]][startPos[1]] = 's';
+			sendMap();
 			//Drop
-			_delay_ms(5000);
+			_delay_ms(1000);
+			TWITransmitData('o');
+			_delay_ms(1000);
 			goTo('s');
-			TWITransmitData('S');
+			bluetooth_transmit('A');
 			missionComplete = 1;
 			return;
 		}
@@ -1144,94 +1165,7 @@ void check_dist(){
 		refDist = distance;
 	}
 }
-uint16_t checkIRValue(void)
-{
-	TCCR1B =(1<<CS10);
-	
-	while(IR_detector == 0x00);
 
-	TCCR1B = (0<<CS10);
-	
-	uint16_t count = TCNT1;
-	
-	TCNT1 = 0x0;
-	
-	return count;
-}
-
-int checkIRPuls(void)
-{
-	//wait for a zero
-	while(IR_detector== 0x01);
-	
-	//check again
-	uint16_t count = checkIRValue();
-	
-	bluetooth_transmit(0x05);
-
-	if (count > 500)
-	{
-		bluetooth_transmit(0x06);
-		return 1;
-	}
-	else
-	{
-		bluetooth_transmit(0x07);
-		return 0;
-	}
-	
-}
-
-void read_IR(void){
-	
-	uint16_t count = checkIRValue();
-	bluetooth_transmit(0x01);
-	if (count > 1000)
-	{
-		bluetooth_transmit(0x02);
-		if(!checkIRPuls())
-		{
-			ir_detected = 0x55;
-			return;
-		}
-		bluetooth_transmit(0x03);
-		if(!checkIRPuls())
-		{
-			ir_detected = 0x55;
-			return;
-		}
-		bluetooth_transmit(0x04);
-		if(!checkIRPuls())
-		{
-			ir_detected = 0x55;
-			return;
-		}
-		
-		//OK VALUE, TARGET DETECTED
-		ir_detected = 0xFF;
-		
-		return;
-	}
-	else if (count < 500)
-	{
-		return;
-	}
-	else
-	{
-		TCCR1B =(1<<CS10);
-		while (IR_detector == 0x01)
-		{
-			if(TCNT1 > 20000)
-			{
-				TCCR1B = (0<<CS10);
-				TCNT1 = 0x0;
-				return;
-			}
-		}
-		read_IR();
-		return;
-	}
-}
 int main(void)
 {
 	TWIInit();
@@ -1282,13 +1216,14 @@ int main(void)
 					}
 
 					TWITransmitData('B');
-					_delay_ms(25); // makes sure robot stops properly
+					_delay_ms(50); // makes sure robot stops properly
 					deadEnd();
 					roboPos[0] = roboPos[0] + rowDir;
 					roboPos[1] = roboPos[1] + colDir;
 					sendMap();
 				}
-				if (counter == 1000)
+				
+				if (counter == 2000)
 				{
 					sendSensorData();
 					counter = 0;
@@ -1296,7 +1231,7 @@ int main(void)
 				counter++;
 			}
 		}
-	
+		
 		sendSensorData();
 		_delay_ms(100);
 	}
