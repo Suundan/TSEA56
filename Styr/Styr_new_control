@@ -404,7 +404,7 @@ void rotate_90_left(void){
 	
 	double sum_velocity = 0;
 	
-	while(sum_velocity < 1050)
+	while(sum_velocity < 1100)
 	{
 		TCCR1B = (0<<CS10);
 		double time = TCNT1;
